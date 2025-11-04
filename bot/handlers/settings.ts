@@ -24,7 +24,7 @@ export async function handleSettings(ctx: BotContext) {
 
     await ctx.answerCbQuery();
   } catch (error) {
-    logger.error('Settings handler error:', error);
+    logger.error({ err: error }, 'Settings handler error:');
     await ctx.answerCbQuery('An error occurred. Please try again.');
   }
 }

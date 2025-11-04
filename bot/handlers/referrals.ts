@@ -25,7 +25,7 @@ export async function handleReferrals(ctx: BotContext) {
 
     await ctx.answerCbQuery();
   } catch (error) {
-    logger.error('Referrals handler error:', error);
+    logger.error({ err: error }, 'Referrals handler error:');
     await ctx.answerCbQuery('An error occurred. Please try again.');
   }
 }
@@ -237,7 +237,7 @@ async function showReferralStats(ctx: BotContext, userId: string, isArabic: bool
 
 async function showReferralLeaderboard(ctx: BotContext, isArabic: boolean) {
   // Get top referrers
-  const topReferrers = await ctx.prisma.referralTree.findMany({
+  const topReferrers: any[] = await (ctx.prisma.referralTree as any).findMany({
     orderBy: { level1Count: 'desc' },
     take: 10,
     include: {

@@ -40,7 +40,7 @@ export const rateLimitMiddleware: Middleware<BotContext> = async (ctx, next) => 
 
     await next();
   } catch (error) {
-    logger.error('Rate limit middleware error:', error);
+    logger.error({ err: error }, 'Rate limit middleware error:');
     await next();
   }
 };

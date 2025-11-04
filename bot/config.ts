@@ -1,6 +1,6 @@
-import { config as dotenvConfig } from 'dotenv';
+import dotenv from 'dotenv';
 
-dotenvConfig();
+dotenv.config();
 
 export const config = {
   // Telegram Bot

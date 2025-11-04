@@ -144,7 +144,7 @@ export async function handleStart(ctx: BotContext) {
       );
     }
   } catch (error) {
-    logger.error('Start handler error:', error);
+    logger.error({ err: error }, 'Start handler error:');
     await ctx.reply('An error occurred during registration. Please try again.');
   }
 }
@@ -224,7 +224,7 @@ async function processReferralRewards(
           }
         );
       } catch (error) {
-        logger.error('Failed to send referral notification:', error);
+        logger.error({ err: error }, 'Failed to send referral notification:');
       }
     }
 
@@ -309,7 +309,7 @@ async function processReferralRewards(
 
     logger.info(`Processed referral rewards for referrer: ${referrerId}`);
   } catch (error) {
-    logger.error('Process referral rewards error:', error);
+    logger.error({ err: error }, 'Process referral rewards error:');
   }
 }
 

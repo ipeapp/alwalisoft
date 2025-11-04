@@ -31,7 +31,7 @@ export async function initializeServices(): Promise<Services> {
         return delay;
       },
       reconnectOnError(err) {
-        logger.error('Redis reconnect on error:', err);
+        logger.error({ err: err }, 'Redis reconnect on error:');
         return true;
       },
     });
@@ -41,7 +41,7 @@ export async function initializeServices(): Promise<Services> {
     });
 
     redis.on('error', (err) => {
-      logger.error('Redis error:', err);
+      logger.error({ err: err }, 'Redis error:');
     });
   }
 

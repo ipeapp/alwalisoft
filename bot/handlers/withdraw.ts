@@ -25,7 +25,7 @@ export async function handleWithdraw(ctx: BotContext) {
 
     await ctx.answerCbQuery();
   } catch (error) {
-    logger.error('Withdraw handler error:', error);
+    logger.error({ err: error }, 'Withdraw handler error:');
     await ctx.answerCbQuery('An error occurred. Please try again.');
   }
 }

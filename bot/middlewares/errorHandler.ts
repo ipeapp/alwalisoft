@@ -6,11 +6,11 @@ export const errorHandler: Middleware<BotContext> = async (ctx, next) => {
   try {
     await next();
   } catch (error: any) {
-    logger.error('Bot error:', {
+    logger.error({
       error: error.message,
       stack: error.stack,
       update: ctx.update,
-    });
+    }, 'Bot error');
 
     try {
       await ctx.reply(
@@ -24,8 +24,8 @@ export const errorHandler: Middleware<BotContext> = async (ctx, next) => {
           },
         }
       );
-    } catch (replyError) {
-      logger.error('Failed to send error message:', replyError);
+    } catch (replyError: any) {
+      logger.error({ err: replyError }, 'Failed to send error message');
     }
   }
 };

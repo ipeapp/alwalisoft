@@ -87,7 +87,7 @@ export async function handleSupport(ctx: BotContext) {
 
     await ctx.answerCbQuery();
   } catch (error) {
-    logger.error('Support handler error:', error);
+    logger.error({ err: error }, 'Support handler error:');
     await ctx.answerCbQuery('An error occurred. Please try again.');
   }
 }

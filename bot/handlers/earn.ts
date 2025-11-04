@@ -107,7 +107,7 @@ export async function handleEarn(ctx: BotContext) {
 
     await ctx.answerCbQuery();
   } catch (error) {
-    logger.error('Earn handler error:', error);
+    logger.error({ err: error }, 'Earn handler error:');
     await ctx.answerCbQuery('An error occurred. Please try again.');
   }
 }

@@ -148,7 +148,7 @@ export async function handleStats(ctx: BotContext) {
 
     await ctx.answerCbQuery();
   } catch (error) {
-    logger.error('Stats handler error:', error);
+    logger.error({ err: error }, 'Stats handler error:');
     await ctx.answerCbQuery('An error occurred. Please try again.');
   }
 }

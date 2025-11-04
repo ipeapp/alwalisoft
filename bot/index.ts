@@ -64,7 +64,7 @@ async function main() {
   // Main menu commands
   bot.command('menu', async (ctx) => {
     await ctx.reply(
-      ctx.i18n?.t('menu.welcome') || 'Welcome! Choose an option:',
+      'Welcome! Choose an option:',
       getMainKeyboard(ctx)
     );
   });
@@ -107,7 +107,7 @@ async function main() {
   // Back to main menu
   bot.action('back_to_menu', async (ctx) => {
     await ctx.editMessageText(
-      ctx.i18n?.t('menu.welcome') || 'Welcome! Choose an option:',
+      'Welcome! Choose an option:',
       getMainKeyboard(ctx)
     );
   });
@@ -141,7 +141,6 @@ async function main() {
       await handleSupport(ctx);
     } else {
       await ctx.reply(
-        ctx.i18n?.t('menu.unknown_command') || 
         'Unknown command. Please use the menu below.',
         getMainKeyboard(ctx)
       );
@@ -153,7 +152,7 @@ async function main() {
   // ========================================================================
 
   bot.catch((err: any, ctx: BotContext) => {
-    logger.error(`Error for ${ctx.updateType}:`, err);
+    logger.error({ err: err }, `Error for ${ctx.updateType}:`);
     ctx.reply('An error occurred. Please try again later.');
   });
 
@@ -216,6 +215,6 @@ function getMainKeyboard(ctx: BotContext) {
 
 // Start the bot
 main().catch((error) => {
-  logger.error('Failed to start bot:', error);
+  logger.error({ err: error }, 'Failed to start bot:');
   process.exit(1);
 });

@@ -64,7 +64,7 @@ export const authMiddleware: Middleware<BotContext> = async (ctx, next) => {
 
     await next();
   } catch (error) {
-    logger.error('Auth middleware error:', error);
+    logger.error({ err: error }, 'Auth middleware error:');
     await ctx.reply('An error occurred. Please try again.');
   }
 };

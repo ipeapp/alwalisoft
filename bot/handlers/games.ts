@@ -17,7 +17,7 @@ export async function handleGames(ctx: BotContext) {
 
     await ctx.answerCbQuery();
   } catch (error) {
-    logger.error('Games handler error:', error);
+    logger.error({ err: error }, 'Games handler error:');
     await ctx.answerCbQuery('An error occurred. Please try again.');
   }
 }

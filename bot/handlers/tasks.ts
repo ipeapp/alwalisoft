@@ -24,7 +24,7 @@ export async function handleTasks(ctx: BotContext) {
       await verifyTaskCompletion(ctx, taskId);
     }
   } catch (error) {
-    logger.error('Tasks handler error:', error);
+    logger.error({ err: error }, 'Tasks handler error:');
     await ctx.answerCbQuery('An error occurred. Please try again.');
   }
 }
@@ -348,14 +348,14 @@ async function verifyTaskCompletion(ctx: BotContext, taskId: string) {
       const member = await ctx.telegram.getChatMember(task.channelId, telegramId);
       verified = ['member', 'administrator', 'creator'].includes(member.status);
     } catch (error) {
-      logger.error('Channel verification error:', error);
+      logger.error({ err: error }, 'Channel verification error:');
     }
   } else if (task.category === 'GROUP_JOIN' && task.groupId) {
     try {
       const member = await ctx.telegram.getChatMember(task.groupId, telegramId);
       verified = ['member', 'administrator', 'creator'].includes(member.status);
     } catch (error) {
-      logger.error('Group verification error:', error);
+      logger.error({ err: error }, 'Group verification error:');
     }
   } else {
     // For other types, mark as unverified (admin verification required)

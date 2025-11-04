@@ -40,7 +40,7 @@ export const sessionMiddleware: Middleware<BotContext> = async (ctx, next) => {
 
     await next();
   } catch (error) {
-    logger.error('Session middleware error:', error);
+    logger.error({ err: error }, 'Session middleware error:');
     await next();
   }
 };
