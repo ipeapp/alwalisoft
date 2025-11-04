@@ -1,0 +1,607 @@
+// Telegram Rewards Bot - Prisma Schema
+// This schema defines the complete database structure for the rewards bot system
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// USER MANAGEMENT
+// ============================================================================
+
+enum UserLevel {
+  BEGINNER
+  PROFESSIONAL
+  EXPERT
+  VIP
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  BANNED
+}
+
+model User {
+  id                  String              @id @default(uuid())
+  telegramId          BigInt              @unique @map("telegram_id")
+  username            String?
+  firstName           String?             @map("first_name")
+  lastName            String?             @map("last_name")
+  languageCode        String              @default("en") @map("language_code")
+  balance             BigInt              @default(2000)
+  level               UserLevel           @default(BEGINNER)
+  status              UserStatus          @default(ACTIVE)
+  referralCode        String              @unique @map("referral_code")
+  referredById        String?             @map("referred_by_id")
+  referredBy          User?               @relation("UserReferrals", fields: [referredById], references: [id], onDelete: SetNull)
+  referrals           User[]              @relation("UserReferrals")
+  tasksCompleted      Int                 @default(0) @map("tasks_completed")
+  referralCount       Int                 @default(0) @map("referral_count")
+  lastActiveAt        DateTime            @default(now()) @map("last_active_at")
+  deviceFingerprint   String?             @map("device_fingerprint")
+  ipAddress           String?             @map("ip_address")
+  createdAt           DateTime            @default(now()) @map("created_at")
+  updatedAt           DateTime            @updatedAt @map("updated_at")
+  
+  // Relations
+  taskCompletions     TaskCompletion[]
+  referralsGiven      Referral[]          @relation("ReferralGiver")
+  referralsReceived   Referral[]          @relation("ReferralReceiver")
+  rewardLedgers       RewardLedger[]
+  withdrawals         Withdrawal[]
+  wallet              Wallet?
+  statistics          UserStatistics?
+  cardCollections     CardCollection[]
+  gemTransactions     GemTransaction[]
+  gameSessions        GameSession[]
+  notifications       Notification[]
+  auditLogs           AuditLog[]
+  userSettings        UserSettings?
+  dailyBonuses        DailyBonus[]
+  
+  @@index([telegramId])
+  @@index([referralCode])
+  @@index([referredById])
+  @@index([level])
+  @@index([status])
+  @@map("users")
+}
+
+model UserSettings {
+  id                  String              @id @default(uuid())
+  userId              String              @unique @map("user_id")
+  user                User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notificationsEnabled Boolean            @default(true) @map("notifications_enabled")
+  language            String              @default("en")
+  timezone            String              @default("UTC")
+  createdAt           DateTime            @default(now()) @map("created_at")
+  updatedAt           DateTime            @updatedAt @map("updated_at")
+  
+  @@map("user_settings")
+}
+
+model UserStatistics {
+  id                  String              @id @default(uuid())
+  userId              String              @unique @map("user_id")
+  user                User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dailyEarnings       BigInt              @default(0) @map("daily_earnings")
+  weeklyEarnings      BigInt              @default(0) @map("weekly_earnings")
+  monthlyEarnings     BigInt              @default(0) @map("monthly_earnings")
+  totalEarnings       BigInt              @default(0) @map("total_earnings")
+  currentStreak       Int                 @default(0) @map("current_streak")
+  longestStreak       Int                 @default(0) @map("longest_streak")
+  totalWithdrawals    BigInt              @default(0) @map("total_withdrawals")
+  lastTaskCompletedAt DateTime?           @map("last_task_completed_at")
+  lastLoginAt         DateTime?           @map("last_login_at")
+  createdAt           DateTime            @default(now()) @map("created_at")
+  updatedAt           DateTime            @updatedAt @map("updated_at")
+  
+  @@map("user_statistics")
+}
+
+// ============================================================================
+// TASKS MANAGEMENT
+// ============================================================================
+
+enum TaskCategory {
+  CHANNEL_SUBSCRIPTION
+  GROUP_JOIN
+  VIDEO_WATCH
+  POST_INTERACTION
+  CONTENT_SHARE
+  SPECIAL_EVENT
+  REFERRAL_BONUS
+  DAILY_LOGIN
+  SURVEY
+}
+
+enum TaskType {
+  DAILY
+  WEEKLY
+  SPECIAL
+  BONUS
+  ONE_TIME
+}
+
+enum TaskDifficulty {
+  EASY
+  MEDIUM
+  HARD
+  EXPERT
+}
+
+model Task {
+  id                  String              @id @default(uuid())
+  name                String
+  description         String              @db.Text
+  category            TaskCategory
+  type                TaskType
+  difficulty          TaskDifficulty      @default(EASY)
+  reward              Int
+  bonusReward         Int?                @map("bonus_reward")
+  minLevel            UserLevel           @default(BEGINNER) @map("min_level")
+  maxCompletions      Int?                @map("max_completions")
+  completionsCount    Int                 @default(0) @map("completions_count")
+  requirement         String?             @db.Text
+  verificationData    Json?               @map("verification_data")
+  channelId           String?             @map("channel_id")
+  channelUsername     String?             @map("channel_username")
+  groupId             String?             @map("group_id")
+  videoUrl            String?             @map("video_url")
+  postUrl             String?             @map("post_url")
+  isActive            Boolean             @default(true) @map("is_active")
+  isBonus             Boolean             @default(false) @map("is_bonus")
+  isFeatured          Boolean             @default(false) @map("is_featured")
+  startsAt            DateTime?           @map("starts_at")
+  expiresAt           DateTime?           @map("expires_at")
+  cooldownMinutes     Int?                @map("cooldown_minutes")
+  priority            Int                 @default(0)
+  createdAt           DateTime            @default(now()) @map("created_at")
+  updatedAt           DateTime            @updatedAt @map("updated_at")
+  
+  // Relations
+  completions         TaskCompletion[]
+  
+  @@index([category])
+  @@index([type])
+  @@index([isActive])
+  @@index([expiresAt])
+  @@map("tasks")
+}
+
+model TaskCompletion {
+  id                  String              @id @default(uuid())
+  userId              String              @map("user_id")
+  user                User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  taskId              String              @map("task_id")
+  task                Task                @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  rewardAmount        Int                 @map("reward_amount")
+  bonusMultiplier     Float               @default(1.0) @map("bonus_multiplier")
+  verified            Boolean             @default(false)
+  verificationProof   Json?               @map("verification_proof")
+  completedAt         DateTime            @default(now()) @map("completed_at")
+  verifiedAt          DateTime?           @map("verified_at")
+  
+  @@unique([userId, taskId, completedAt])
+  @@index([userId])
+  @@index([taskId])
+  @@index([verified])
+  @@map("task_completions")
+}
+
+// ============================================================================
+// REFERRAL SYSTEM (Multi-level)
+// ============================================================================
+
+model Referral {
+  id                  String              @id @default(uuid())
+  referrerId          String              @map("referrer_id")
+  referrer            User                @relation("ReferralGiver", fields: [referrerId], references: [id], onDelete: Cascade)
+  referredId          String              @map("referred_id")
+  referred            User                @relation("ReferralReceiver", fields: [referredId], references: [id], onDelete: Cascade)
+  level               Int                 @default(1)
+  commission          BigInt
+  totalEarned         BigInt              @default(0) @map("total_earned")
+  isActive            Boolean             @default(true) @map("is_active")
+  createdAt           DateTime            @default(now()) @map("created_at")
+  
+  @@unique([referrerId, referredId])
+  @@index([referrerId])
+  @@index([referredId])
+  @@index([level])
+  @@map("referrals")
+}
+
+model ReferralTree {
+  id                  String              @id @default(uuid())
+  userId              String              @map("user_id")
+  level1Count         Int                 @default(0) @map("level1_count")
+  level2Count         Int                 @default(0) @map("level2_count")
+  level3Count         Int                 @default(0) @map("level3_count")
+  level1Earnings      BigInt              @default(0) @map("level1_earnings")
+  level2Earnings      BigInt              @default(0) @map("level2_earnings")
+  level3Earnings      BigInt              @default(0) @map("level3_earnings")
+  totalReferralEarnings BigInt            @default(0) @map("total_referral_earnings")
+  createdAt           DateTime            @default(now()) @map("created_at")
+  updatedAt           DateTime            @updatedAt @map("updated_at")
+  
+  @@unique([userId])
+  @@map("referral_trees")
+}
+
+// ============================================================================
+// REWARDS & WALLET
+// ============================================================================
+
+enum RewardType {
+  TASK_COMPLETION
+  REFERRAL_BONUS
+  DAILY_BONUS
+  GAME_WIN
+  SPECIAL_EVENT
+  ADMIN_GRANT
+  PROMOTION
+  CARD_SALE
+  GEM_EXCHANGE
+}
+
+model RewardLedger {
+  id                  String              @id @default(uuid())
+  userId              String              @map("user_id")
+  user                User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type                RewardType
+  amount              BigInt
+  description         String?
+  metadata            Json?
+  balanceBefore       BigInt              @map("balance_before")
+  balanceAfter        BigInt              @map("balance_after")
+  createdAt           DateTime            @default(now()) @map("created_at")
+  
+  @@index([userId])
+  @@index([type])
+  @@index([createdAt])
+  @@map("reward_ledgers")
+}
+
+model Wallet {
+  id                  String              @id @default(uuid())
+  userId              String              @unique @map("user_id")
+  user                User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  balance             BigInt              @default(0)
+  lockedBalance       BigInt              @default(0) @map("locked_balance")
+  totalEarned         BigInt              @default(0) @map("total_earned")
+  totalWithdrawn      BigInt              @default(0) @map("total_withdrawn")
+  gems                Int                 @default(0)
+  createdAt           DateTime            @default(now()) @map("created_at")
+  updatedAt           DateTime            @updatedAt @map("updated_at")
+  
+  @@map("wallets")
+}
+
+// ============================================================================
+// WITHDRAWALS
+// ============================================================================
+
+enum WithdrawalStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REJECTED
+  CANCELLED
+}
+
+enum PaymentNetwork {
+  TRC20
+  ERC20
+  BEP20
+}
+
+model Withdrawal {
+  id                  String              @id @default(uuid())
+  userId              String              @map("user_id")
+  user                User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount              BigInt
+  usdtAmount          Float               @map("usdt_amount")
+  walletAddress       String              @map("wallet_address")
+  network             PaymentNetwork      @default(TRC20)
+  status              WithdrawalStatus    @default(PENDING)
+  txHash              String?             @map("tx_hash")
+  processorId         String?             @map("processor_id")
+  processorNotes      String?             @map("processor_notes")
+  failureReason       String?             @map("failure_reason")
+  requestedAt         DateTime            @default(now()) @map("requested_at")
+  processedAt         DateTime?           @map("processed_at")
+  completedAt         DateTime?           @map("completed_at")
+  
+  @@index([userId])
+  @@index([status])
+  @@index([requestedAt])
+  @@map("withdrawals")
+}
+
+// ============================================================================
+// CARDS & GEMS SYSTEM
+// ============================================================================
+
+enum CardRarity {
+  COMMON
+  UNCOMMON
+  RARE
+  EPIC
+  LEGENDARY
+}
+
+model Card {
+  id                  String              @id @default(uuid())
+  name                String
+  description         String              @db.Text
+  rarity              CardRarity
+  imageUrl            String?             @map("image_url")
+  baseValue           Int                 @map("base_value")
+  bonusPercentage     Float               @default(0) @map("bonus_percentage")
+  totalSupply         Int?                @map("total_supply")
+  currentSupply       Int                 @default(0) @map("current_supply")
+  isActive            Boolean             @default(true) @map("is_active")
+  createdAt           DateTime            @default(now()) @map("created_at")
+  
+  // Relations
+  collections         CardCollection[]
+  
+  @@index([rarity])
+  @@index([isActive])
+  @@map("cards")
+}
+
+model CardCollection {
+  id                  String              @id @default(uuid())
+  userId              String              @map("user_id")
+  user                User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cardId              String              @map("card_id")
+  card                Card                @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  quantity            Int                 @default(1)
+  acquiredAt          DateTime            @default(now()) @map("acquired_at")
+  
+  @@unique([userId, cardId])
+  @@index([userId])
+  @@map("card_collections")
+}
+
+enum GemTransactionType {
+  EARNED
+  SPENT
+  EXCHANGED
+  ADMIN_GRANT
+}
+
+model GemTransaction {
+  id                  String              @id @default(uuid())
+  userId              String              @map("user_id")
+  user                User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type                GemTransactionType
+  amount              Int
+  description         String?
+  metadata            Json?
+  balanceBefore       Int                 @map("balance_before")
+  balanceAfter        Int                 @map("balance_after")
+  createdAt           DateTime            @default(now()) @map("created_at")
+  
+  @@index([userId])
+  @@map("gem_transactions")
+}
+
+// ============================================================================
+// MINI GAMES
+// ============================================================================
+
+enum GameType {
+  TARGET_HIT
+  LUCKY_WHEEL
+  QUIZ_CHALLENGE
+  TOURNAMENT
+}
+
+enum GameStatus {
+  ACTIVE
+  COMPLETED
+  EXPIRED
+}
+
+model GameSession {
+  id                  String              @id @default(uuid())
+  userId              String              @map("user_id")
+  user                User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gameType            GameType            @map("game_type")
+  status              GameStatus          @default(ACTIVE)
+  score               Int                 @default(0)
+  reward              BigInt              @default(0)
+  attempts            Int                 @default(1)
+  maxAttempts         Int                 @default(1) @map("max_attempts")
+  gameData            Json?               @map("game_data")
+  startedAt           DateTime            @default(now()) @map("started_at")
+  completedAt         DateTime?           @map("completed_at")
+  
+  @@index([userId])
+  @@index([gameType])
+  @@index([status])
+  @@map("game_sessions")
+}
+
+model Leaderboard {
+  id                  String              @id @default(uuid())
+  userId              String              @map("user_id")
+  period              String              // daily, weekly, monthly, all_time
+  category            String              // tasks, earnings, referrals, games
+  score               BigInt
+  rank                Int
+  prizes              Json?
+  createdAt           DateTime            @default(now()) @map("created_at")
+  updatedAt           DateTime            @updatedAt @map("updated_at")
+  
+  @@unique([userId, period, category])
+  @@index([period, category, rank])
+  @@map("leaderboards")
+}
+
+// ============================================================================
+// PROMOTIONS & BONUSES
+// ============================================================================
+
+enum PromotionType {
+  FLASH_SALE
+  HOLIDAY_BONUS
+  MULTIPLIER_EVENT
+  REFERRAL_BOOST
+  TASK_BOOST
+}
+
+model Promotion {
+  id                  String              @id @default(uuid())
+  name                String
+  description         String              @db.Text
+  type                PromotionType
+  multiplier          Float               @default(1.0)
+  bonusAmount         BigInt?             @map("bonus_amount")
+  targetLevel         UserLevel?          @map("target_level")
+  minTasksRequired    Int?                @map("min_tasks_required")
+  isActive            Boolean             @default(true) @map("is_active")
+  startsAt            DateTime            @map("starts_at")
+  expiresAt           DateTime            @map("expires_at")
+  createdAt           DateTime            @default(now()) @map("created_at")
+  
+  @@index([isActive])
+  @@index([startsAt])
+  @@index([expiresAt])
+  @@map("promotions")
+}
+
+model DailyBonus {
+  id                  String              @id @default(uuid())
+  userId              String              @map("user_id")
+  user                User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  day                 Int
+  reward              BigInt
+  claimed             Boolean             @default(false)
+  claimedAt           DateTime?           @map("claimed_at")
+  createdAt           DateTime            @default(now()) @map("created_at")
+  
+  @@unique([userId, day, createdAt])
+  @@index([userId])
+  @@map("daily_bonuses")
+}
+
+// ============================================================================
+// NOTIFICATIONS
+// ============================================================================
+
+enum NotificationType {
+  TASK_AVAILABLE
+  REWARD_RECEIVED
+  WITHDRAWAL_STATUS
+  REFERRAL_JOINED
+  LEVEL_UP
+  PROMOTION_ALERT
+  SYSTEM_MESSAGE
+}
+
+model Notification {
+  id                  String              @id @default(uuid())
+  userId              String              @map("user_id")
+  user                User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type                NotificationType
+  title               String
+  message             String              @db.Text
+  data                Json?
+  isRead              Boolean             @default(false) @map("is_read")
+  readAt              DateTime?           @map("read_at")
+  createdAt           DateTime            @default(now()) @map("created_at")
+  
+  @@index([userId, isRead])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+// ============================================================================
+// ADMIN & AUDIT
+// ============================================================================
+
+enum AdminRole {
+  SUPER_ADMIN
+  ADMIN
+  MODERATOR
+  SUPPORT
+}
+
+model Admin {
+  id                  String              @id @default(uuid())
+  username            String              @unique
+  email               String              @unique
+  passwordHash        String              @map("password_hash")
+  role                AdminRole           @default(MODERATOR)
+  twoFactorEnabled    Boolean             @default(false) @map("two_factor_enabled")
+  twoFactorSecret     String?             @map("two_factor_secret")
+  isActive            Boolean             @default(true) @map("is_active")
+  lastLoginAt         DateTime?           @map("last_login_at")
+  createdAt           DateTime            @default(now()) @map("created_at")
+  updatedAt           DateTime            @updatedAt @map("updated_at")
+  
+  // Relations
+  auditLogs           AuditLog[]
+  
+  @@map("admins")
+}
+
+enum AuditAction {
+  USER_CREATE
+  USER_UPDATE
+  USER_SUSPEND
+  USER_BAN
+  TASK_CREATE
+  TASK_UPDATE
+  TASK_DELETE
+  WITHDRAWAL_APPROVE
+  WITHDRAWAL_REJECT
+  REWARD_GRANT
+  SYSTEM_CONFIG
+}
+
+model AuditLog {
+  id                  String              @id @default(uuid())
+  adminId             String?             @map("admin_id")
+  admin               Admin?              @relation(fields: [adminId], references: [id], onDelete: SetNull)
+  userId              String?             @map("user_id")
+  user                User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action              AuditAction
+  entity              String
+  entityId            String?             @map("entity_id")
+  changes             Json?
+  ipAddress           String?             @map("ip_address")
+  userAgent           String?             @map("user_agent")
+  createdAt           DateTime            @default(now()) @map("created_at")
+  
+  @@index([adminId])
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ============================================================================
+// SYSTEM CONFIGURATION
+// ============================================================================
+
+model SystemConfig {
+  id                  String              @id @default(uuid())
+  key                 String              @unique
+  value               Json
+  description         String?
+  updatedAt           DateTime            @updatedAt @map("updated_at")
+  
+  @@map("system_configs")
+}
