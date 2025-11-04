@@ -1,100 +1,127 @@
-import { type NextRequest, NextResponse } from "next/server"
-
-interface Task {
-  id: string
-  name: string
-  description: string
-  category: "channel" | "group" | "video" | "share" | "referral"
-  reward: number
-  requirement?: string
-  isActive: boolean
-  isBonus: boolean
-  expiresAt?: string
-  createdAt: string
-}
-
-const tasks: Map<string, Task> = new Map([
-  [
-    "task_1",
-    {
-      id: "task_1",
-      name: "Join Telegram Channel",
-      description: "Subscribe to our main channel",
-      category: "channel",
-      reward: 5000,
-      isActive: true,
-      isBonus: false,
-      createdAt: new Date().toISOString(),
-    },
-  ],
-  [
-    "task_2",
-    {
-      id: "task_2",
-      name: "Watch Video",
-      description: "Watch video content (3+ minutes)",
-      category: "video",
-      reward: 1000,
-      isActive: true,
-      isBonus: false,
-      createdAt: new Date().toISOString(),
-    },
-  ],
-])
+import { prisma } from '@/lib/prisma';
+import { successResponse, errorResponse } from '@/lib/api-response';
+import { NextRequest } from 'next/server';
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
-    const category = searchParams.get("category")
-    const active = searchParams.get("active")
+    const { searchParams } = new URL(request.url);
+    const category = searchParams.get('category');
+    const type = searchParams.get('type');
+    const active = searchParams.get('active');
+    const level = searchParams.get('level');
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '20');
+    const skip = (page - 1) * limit;
 
-    let result = Array.from(tasks.values())
+    const where: any = {};
+    
+    if (category) where.category = category;
+    if (type) where.type = type;
+    if (active !== null) where.isActive = active === 'true';
+    if (level) where.minLevel = level;
 
-    if (category) {
-      result = result.filter((t) => t.category === category)
+    // Only active and not expired tasks
+    if (active !== 'false') {
+      where.isActive = true;
+      where.OR = [
+        { expiresAt: null },
+        { expiresAt: { gt: new Date() } },
+      ];
     }
 
-    if (active === "true") {
-      result = result.filter((t) => t.isActive)
-    }
+    const [tasks, total] = await Promise.all([
+      prisma.task.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: [
+          { isFeatured: 'desc' },
+          { priority: 'desc' },
+          { reward: 'desc' },
+        ],
+      }),
+      prisma.task.count({ where }),
+    ]);
 
-    return NextResponse.json({
-      success: true,
-      tasks: result,
-      total: result.length,
-    })
+    return successResponse({
+      tasks,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    });
   } catch (error) {
-    console.error("Error fetching tasks:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    console.error('GET /api/tasks error:', error);
+    return errorResponse('Internal server error', 500);
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { name, description, category, reward } = body
-
-    if (!name || !category || !reward) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
-    }
-
-    const taskId = `task_${Date.now()}`
-    const newTask: Task = {
-      id: taskId,
+    const body = await request.json();
+    
+    const {
       name,
       description,
       category,
+      type,
+      difficulty,
       reward,
-      isActive: true,
-      isBonus: false,
-      createdAt: new Date().toISOString(),
+      bonusReward,
+      minLevel,
+      maxCompletions,
+      requirement,
+      verificationData,
+      channelId,
+      channelUsername,
+      groupId,
+      videoUrl,
+      postUrl,
+      isBonus,
+      isFeatured,
+      startsAt,
+      expiresAt,
+      cooldownMinutes,
+      priority,
+    } = body;
+
+    // Validate required fields
+    if (!name || !description || !category || !type || !reward) {
+      return errorResponse('Missing required fields');
     }
 
-    tasks.set(taskId, newTask)
+    const task = await prisma.task.create({
+      data: {
+        name,
+        description,
+        category,
+        type,
+        difficulty: difficulty || 'EASY',
+        reward,
+        bonusReward,
+        minLevel: minLevel || 'BEGINNER',
+        maxCompletions,
+        requirement,
+        verificationData,
+        channelId,
+        channelUsername,
+        groupId,
+        videoUrl,
+        postUrl,
+        isBonus: isBonus || false,
+        isFeatured: isFeatured || false,
+        startsAt: startsAt ? new Date(startsAt) : undefined,
+        expiresAt: expiresAt ? new Date(expiresAt) : undefined,
+        cooldownMinutes,
+        priority: priority || 0,
+      },
+    });
 
-    return NextResponse.json({ success: true, task: newTask }, { status: 201 })
+    return successResponse(task, 'Task created successfully');
   } catch (error) {
-    console.error("Error creating task:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    console.error('POST /api/tasks error:', error);
+    return errorResponse('Internal server error', 500);
   }
 }

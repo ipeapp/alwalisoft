@@ -1,67 +1,121 @@
-import { type NextRequest, NextResponse } from "next/server"
-
-interface WithdrawalRequest {
-  id: string
-  userId: string
-  amount: number
-  walletAddress: string
-  status: "pending" | "processing" | "completed" | "failed"
-  txHash?: string
-  createdAt: string
-  completedAt?: string
-}
-
-const withdrawals: Map<string, WithdrawalRequest> = new Map()
-
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json()
-    const { userId, amount, walletAddress } = body
-
-    if (!userId || !amount || !walletAddress) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
-    }
-
-    if (amount < 5000000) {
-      return NextResponse.json({ error: "Minimum withdrawal is 5,000,000 coins" }, { status: 400 })
-    }
-
-    const withdrawalId = `withdrawal_${Date.now()}`
-    const withdrawal: WithdrawalRequest = {
-      id: withdrawalId,
-      userId,
-      amount,
-      walletAddress,
-      status: "pending",
-      createdAt: new Date().toISOString(),
-    }
-
-    withdrawals.set(withdrawalId, withdrawal)
-
-    return NextResponse.json({ success: true, withdrawal }, { status: 201 })
-  } catch (error) {
-    console.error("Error creating withdrawal:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
-  }
-}
+import { prisma } from '@/lib/prisma';
+import { successResponse, errorResponse } from '@/lib/api-response';
+import { NextRequest } from 'next/server';
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
-    const userId = searchParams.get("userId")
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get('userId');
+    const status = searchParams.get('status');
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '20');
+    const skip = (page - 1) * limit;
 
-    if (!userId) {
-      return NextResponse.json({ error: "userId is required" }, { status: 400 })
+    const where: any = {};
+    if (userId) where.userId = userId;
+    if (status) where.status = status;
+
+    const [withdrawals, total] = await Promise.all([
+      prisma.withdrawal.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { requestedAt: 'desc' },
+        include: {
+          user: {
+            select: {
+              username: true,
+              telegramId: true,
+            },
+          },
+        },
+      }),
+      prisma.withdrawal.count({ where }),
+    ]);
+
+    return successResponse({
+      withdrawals,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    console.error('GET /api/withdrawals error:', error);
+    return errorResponse('Internal server error', 500);
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const { userId, amount, walletAddress, network = 'TRC20' } = await request.json();
+
+    if (!userId || !amount || !walletAddress) {
+      return errorResponse('Missing required fields');
     }
 
-    const userWithdrawals = Array.from(withdrawals.values()).filter((w) => w.userId === userId)
+    // Get user
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
 
-    return NextResponse.json({
-      success: true,
-      withdrawals: userWithdrawals,
-    })
+    if (!user) {
+      return errorResponse('User not found', 404);
+    }
+
+    // Check balance
+    const amountBigInt = BigInt(amount);
+    if (user.balance < amountBigInt) {
+      return errorResponse('Insufficient balance', 400);
+    }
+
+    // Check minimum withdrawal
+    const minAmount = BigInt(5000000); // 5 USDT
+    if (amountBigInt < minAmount) {
+      return errorResponse('Amount is below minimum withdrawal', 400);
+    }
+
+    // Calculate USDT amount
+    const usdtAmount = Number(amountBigInt) / 1000000;
+
+    // Create withdrawal request
+    const withdrawal = await prisma.$transaction(async (tx) => {
+      // Lock balance
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          balance: { decrement: amountBigInt },
+        },
+      });
+
+      // Update wallet
+      await tx.wallet.update({
+        where: { userId },
+        data: {
+          lockedBalance: { increment: amountBigInt },
+        },
+      });
+
+      // Create withdrawal
+      const newWithdrawal = await tx.withdrawal.create({
+        data: {
+          userId,
+          amount: amountBigInt,
+          usdtAmount,
+          walletAddress,
+          network,
+          status: 'PENDING',
+        },
+      });
+
+      return newWithdrawal;
+    });
+
+    return successResponse(withdrawal, 'Withdrawal request created successfully');
   } catch (error) {
-    console.error("Error fetching withdrawals:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    console.error('POST /api/withdrawals error:', error);
+    return errorResponse('Internal server error', 500);
   }
 }
