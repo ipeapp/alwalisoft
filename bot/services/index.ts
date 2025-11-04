@@ -22,27 +22,36 @@ export async function initializeServices(): Promise<Services> {
     logger.info('Connected to PostgreSQL via Prisma');
   }
 
-  // Initialize Redis
+  // Initialize Redis (optional)
   if (!redis) {
-    redis = new Redis(config.redisUrl, {
-      maxRetriesPerRequest: 3,
-      retryStrategy(times) {
-        const delay = Math.min(times * 50, 2000);
-        return delay;
-      },
-      reconnectOnError(err) {
-        logger.error({ err: err }, 'Redis reconnect on error:');
-        return true;
-      },
-    });
+    try {
+      redis = new Redis(config.redisUrl, {
+        maxRetriesPerRequest: 1,
+        connectTimeout: 2000,
+        retryStrategy() {
+          return null; // Don't retry
+        },
+        lazyConnect: true,
+      });
 
-    redis.on('connect', () => {
-      logger.info('Connected to Redis');
-    });
+      await redis.connect().catch(() => {
+        logger.warn('⚠️  Redis not available - bot will work without caching');
+        redis = null as any;
+      });
 
-    redis.on('error', (err) => {
-      logger.error({ err: err }, 'Redis error:');
-    });
+      if (redis) {
+        redis.on('connect', () => {
+          logger.info('✅ Connected to Redis');
+        });
+
+        redis.on('error', () => {
+          // Silently ignore
+        });
+      }
+    } catch (error) {
+      logger.warn('⚠️  Redis not available - bot will work without caching');
+      redis = null as any;
+    }
   }
 
   return { prisma, redis };

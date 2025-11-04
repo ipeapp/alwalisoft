@@ -6,8 +6,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:./dev.db"
 }
 
 // ============================================================================
@@ -29,12 +29,12 @@ enum UserStatus {
 
 model User {
   id                  String              @id @default(uuid())
-  telegramId          BigInt              @unique @map("telegram_id")
+  telegramId          Int              @unique @map("telegram_id")
   username            String?
   firstName           String?             @map("first_name")
   lastName            String?             @map("last_name")
   languageCode        String              @default("en") @map("language_code")
-  balance             BigInt              @default(2000)
+  balance             Int              @default(2000)
   level               UserLevel           @default(BEGINNER)
   status              UserStatus          @default(ACTIVE)
   referralCode        String              @unique @map("referral_code")
@@ -90,13 +90,13 @@ model UserStatistics {
   id                  String              @id @default(uuid())
   userId              String              @unique @map("user_id")
   user                User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  dailyEarnings       BigInt              @default(0) @map("daily_earnings")
-  weeklyEarnings      BigInt              @default(0) @map("weekly_earnings")
-  monthlyEarnings     BigInt              @default(0) @map("monthly_earnings")
-  totalEarnings       BigInt              @default(0) @map("total_earnings")
+  dailyEarnings       Int              @default(0) @map("daily_earnings")
+  weeklyEarnings      Int              @default(0) @map("weekly_earnings")
+  monthlyEarnings     Int              @default(0) @map("monthly_earnings")
+  totalEarnings       Int              @default(0) @map("total_earnings")
   currentStreak       Int                 @default(0) @map("current_streak")
   longestStreak       Int                 @default(0) @map("longest_streak")
-  totalWithdrawals    BigInt              @default(0) @map("total_withdrawals")
+  totalWithdrawals    Int              @default(0) @map("total_withdrawals")
   lastTaskCompletedAt DateTime?           @map("last_task_completed_at")
   lastLoginAt         DateTime?           @map("last_login_at")
   createdAt           DateTime            @default(now()) @map("created_at")
@@ -139,7 +139,7 @@ enum TaskDifficulty {
 model Task {
   id                  String              @id @default(uuid())
   name                String
-  description         String              @db.Text
+  description         String              
   category            TaskCategory
   type                TaskType
   difficulty          TaskDifficulty      @default(EASY)
@@ -148,7 +148,7 @@ model Task {
   minLevel            UserLevel           @default(BEGINNER) @map("min_level")
   maxCompletions      Int?                @map("max_completions")
   completionsCount    Int                 @default(0) @map("completions_count")
-  requirement         String?             @db.Text
+  requirement         String?             
   verificationData    Json?               @map("verification_data")
   channelId           String?             @map("channel_id")
   channelUsername     String?             @map("channel_username")
@@ -206,8 +206,8 @@ model Referral {
   referredId          String              @map("referred_id")
   referred            User                @relation("ReferralReceiver", fields: [referredId], references: [id], onDelete: Cascade)
   level               Int                 @default(1)
-  commission          BigInt
-  totalEarned         BigInt              @default(0) @map("total_earned")
+  commission          Int
+  totalEarned         Int              @default(0) @map("total_earned")
   isActive            Boolean             @default(true) @map("is_active")
   createdAt           DateTime            @default(now()) @map("created_at")
   
@@ -224,10 +224,10 @@ model ReferralTree {
   level1Count         Int                 @default(0) @map("level1_count")
   level2Count         Int                 @default(0) @map("level2_count")
   level3Count         Int                 @default(0) @map("level3_count")
-  level1Earnings      BigInt              @default(0) @map("level1_earnings")
-  level2Earnings      BigInt              @default(0) @map("level2_earnings")
-  level3Earnings      BigInt              @default(0) @map("level3_earnings")
-  totalReferralEarnings BigInt            @default(0) @map("total_referral_earnings")
+  level1Earnings      Int              @default(0) @map("level1_earnings")
+  level2Earnings      Int              @default(0) @map("level2_earnings")
+  level3Earnings      Int              @default(0) @map("level3_earnings")
+  totalReferralEarnings Int            @default(0) @map("total_referral_earnings")
   createdAt           DateTime            @default(now()) @map("created_at")
   updatedAt           DateTime            @updatedAt @map("updated_at")
   
@@ -256,11 +256,11 @@ model RewardLedger {
   userId              String              @map("user_id")
   user                User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   type                RewardType
-  amount              BigInt
+  amount              Int
   description         String?
   metadata            Json?
-  balanceBefore       BigInt              @map("balance_before")
-  balanceAfter        BigInt              @map("balance_after")
+  balanceBefore       Int              @map("balance_before")
+  balanceAfter        Int              @map("balance_after")
   createdAt           DateTime            @default(now()) @map("created_at")
   
   @@index([userId])
@@ -273,10 +273,10 @@ model Wallet {
   id                  String              @id @default(uuid())
   userId              String              @unique @map("user_id")
   user                User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  balance             BigInt              @default(0)
-  lockedBalance       BigInt              @default(0) @map("locked_balance")
-  totalEarned         BigInt              @default(0) @map("total_earned")
-  totalWithdrawn      BigInt              @default(0) @map("total_withdrawn")
+  balance             Int              @default(0)
+  lockedBalance       Int              @default(0) @map("locked_balance")
+  totalEarned         Int              @default(0) @map("total_earned")
+  totalWithdrawn      Int              @default(0) @map("total_withdrawn")
   gems                Int                 @default(0)
   createdAt           DateTime            @default(now()) @map("created_at")
   updatedAt           DateTime            @updatedAt @map("updated_at")
@@ -307,7 +307,7 @@ model Withdrawal {
   id                  String              @id @default(uuid())
   userId              String              @map("user_id")
   user                User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  amount              BigInt
+  amount              Int
   usdtAmount          Float               @map("usdt_amount")
   walletAddress       String              @map("wallet_address")
   network             PaymentNetwork      @default(TRC20)
@@ -341,7 +341,7 @@ enum CardRarity {
 model Card {
   id                  String              @id @default(uuid())
   name                String
-  description         String              @db.Text
+  description         String              
   rarity              CardRarity
   imageUrl            String?             @map("image_url")
   baseValue           Int                 @map("base_value")
@@ -420,7 +420,7 @@ model GameSession {
   gameType            GameType            @map("game_type")
   status              GameStatus          @default(ACTIVE)
   score               Int                 @default(0)
-  reward              BigInt              @default(0)
+  reward              Int              @default(0)
   attempts            Int                 @default(1)
   maxAttempts         Int                 @default(1) @map("max_attempts")
   gameData            Json?               @map("game_data")
@@ -438,7 +438,7 @@ model Leaderboard {
   userId              String              @map("user_id")
   period              String              // daily, weekly, monthly, all_time
   category            String              // tasks, earnings, referrals, games
-  score               BigInt
+  score               Int
   rank                Int
   prizes              Json?
   createdAt           DateTime            @default(now()) @map("created_at")
@@ -464,10 +464,10 @@ enum PromotionType {
 model Promotion {
   id                  String              @id @default(uuid())
   name                String
-  description         String              @db.Text
+  description         String              
   type                PromotionType
   multiplier          Float               @default(1.0)
-  bonusAmount         BigInt?             @map("bonus_amount")
+  bonusAmount         Int?             @map("bonus_amount")
   targetLevel         UserLevel?          @map("target_level")
   minTasksRequired    Int?                @map("min_tasks_required")
   isActive            Boolean             @default(true) @map("is_active")
@@ -486,7 +486,7 @@ model DailyBonus {
   userId              String              @map("user_id")
   user                User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   day                 Int
-  reward              BigInt
+  reward              Int
   claimed             Boolean             @default(false)
   claimedAt           DateTime?           @map("claimed_at")
   createdAt           DateTime            @default(now()) @map("created_at")
@@ -516,7 +516,7 @@ model Notification {
   user                User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   type                NotificationType
   title               String
-  message             String              @db.Text
+  message             String              
   data                Json?
   isRead              Boolean             @default(false) @map("is_read")
   readAt              DateTime?           @map("read_at")
