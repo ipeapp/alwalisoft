@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Script from 'next/script';
+import { AuthProvider } from '@/lib/auth-context';
 
 export const metadata: Metadata = {
   title: 'Telegram Rewards Bot',
@@ -24,7 +25,9 @@ export default function MiniAppLayout({
         src="https://telegram.org/js/telegram-web-app.js" 
         strategy="beforeInteractive"
       />
-      {children}
+      <AuthProvider>
+        {children}
+      </AuthProvider>
     </>
   );
 }
