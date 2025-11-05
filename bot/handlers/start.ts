@@ -139,7 +139,7 @@ export async function handleStart(ctx: BotContext) {
               [
                 {
                   text: isArabic ? '🚀 فتح التطبيق' : '🚀 Open App',
-                  web_app: { url: `${miniAppUrl}/mini-app` }
+                  web_app: { url: miniAppUrl }
                 }
               ],
               [
@@ -172,7 +172,7 @@ export async function handleStart(ctx: BotContext) {
               [
                 {
                   text: isArabic ? '🚀 فتح التطبيق' : '🚀 Open App',
-                  web_app: { url: `${miniAppUrl}/mini-app` }
+                  web_app: { url: miniAppUrl }
                 }
               ],
               [
