@@ -14,7 +14,12 @@ function GamesContent() {
   const [result, setResult] = useState<number | null>(null);
 
   const playLuckyWheel = async () => {
-    if (!user) return;
+    if (!user) {
+      if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
+        window.Telegram.WebApp.showAlert('⚠️ Please login first!');
+      }
+      return;
+    }
     
     setSpinning(true);
     setResult(null);
@@ -30,17 +35,27 @@ function GamesContent() {
 
         if (response.ok) {
           const data = await response.json();
-          setResult(data.reward || 0);
-          
-          if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
-            window.Telegram.WebApp.showAlert(`🎉 You won ${data.reward} coins!`);
+          if (data.success) {
+            setResult(data.reward || 0);
+            
+            if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
+              window.Telegram.WebApp.showAlert(`🎉 ربحت ${data.reward.toLocaleString()} عملة!`);
+            }
+          } else {
+            throw new Error(data.message || 'Game failed');
           }
+        } else {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Network error');
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error playing game:', error);
+        if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
+          window.Telegram.WebApp.showAlert(`❌ خطأ: ${error.message || 'حدث خطأ، حاول مرة أخرى'}`);
+        }
+      } finally {
+        setSpinning(false);
       }
-
-      setSpinning(false);
     }, 2000);
   };
 
@@ -56,15 +71,25 @@ function GamesContent() {
       id: 'target-hit',
       name: '🎯 Target Hit',
       description: 'Hit the target to earn coins',
-      action: () => {},
-      color: 'from-orange-600 to-red-600'
+      action: () => {
+        if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
+          window.Telegram.WebApp.showAlert('🎯 قريباً! هذه اللعبة قيد التطوير');
+        }
+      },
+      color: 'from-orange-600 to-red-600',
+      comingSoon: true
     },
     {
       id: 'quiz',
       name: '🧠 Quiz Challenge',
       description: 'Answer questions correctly',
-      action: () => {},
-      color: 'from-blue-600 to-cyan-600'
+      action: () => {
+        if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
+          window.Telegram.WebApp.showAlert('🧠 قريباً! هذه اللعبة قيد التطوير');
+        }
+      },
+      color: 'from-blue-600 to-cyan-600',
+      comingSoon: true
     }
   ];
 

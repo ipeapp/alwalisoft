@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 export async function POST(req: NextRequest) {
-  const prisma = new PrismaClient();
+  let prisma: PrismaClient | null = null;
   
   try {
     const body = await req.json();
@@ -14,9 +14,11 @@ export async function POST(req: NextRequest) {
     if (!userId) {
       return NextResponse.json({
         success: false,
-        message: 'User ID is required'
+        message: 'معرف المستخدم مطلوب'
       }, { status: 400 });
     }
+
+    prisma = new PrismaClient();
 
     // Find user
     const user = await prisma.user.findUnique({
@@ -26,8 +28,28 @@ export async function POST(req: NextRequest) {
     if (!user) {
       return NextResponse.json({
         success: false,
-        message: 'User not found'
+        message: 'المستخدم غير موجود'
       }, { status: 404 });
+    }
+
+    // Check daily play limit (example: 5 plays per day)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const todayPlays = await prisma.transaction.count({
+      where: {
+        userId: user.id,
+        type: 'GAME_REWARD',
+        description: { contains: 'Lucky Wheel' },
+        createdAt: { gte: today }
+      }
+    });
+
+    if (todayPlays >= 5) {
+      return NextResponse.json({
+        success: false,
+        message: 'لقد وصلت للحد الأقصى من اللعب اليوم (5 مرات)'
+      }, { status: 429 });
     }
 
     // Generate random reward (100-10000 coins)
@@ -35,10 +57,10 @@ export async function POST(req: NextRequest) {
     const reward = possibleRewards[Math.floor(Math.random() * possibleRewards.length)];
 
     // Update user balance
-    await prisma.user.update({
+    const updatedUser = await prisma.user.update({
       where: { id: user.id },
       data: {
-        balance: user.balance + reward
+        balance: { increment: reward }
       }
     });
 
@@ -52,21 +74,23 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    await prisma.$disconnect();
-
     return NextResponse.json({
       success: true,
       reward,
-      newBalance: user.balance + reward,
-      message: 'Game completed successfully'
+      newBalance: updatedUser.balance,
+      playsRemaining: 5 - todayPlays - 1,
+      message: 'تم اللعب بنجاح!'
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in lucky wheel game:', error);
-    await prisma.$disconnect();
     
     return NextResponse.json({
       success: false,
-      message: 'An error occurred while playing the game'
+      message: error.message || 'حدث خطأ أثناء اللعب'
     }, { status: 500 });
+  } finally {
+    if (prisma) {
+      await prisma.$disconnect();
+    }
   }
 }
