@@ -128,16 +128,24 @@ export async function handleStart(ctx: BotContext) {
     // Check if URL is HTTPS (required for Web Apps)
     const isHttps = miniAppUrl.startsWith('https://');
     
-    // Build keyboard based on whether we can use Web App
+    // Build keyboard with Web App button (use URL button for HTTP in dev)
     const buildKeyboard = () => {
       const keyboard = [];
       
-      // Add Web App button only if HTTPS
+      // Add Web App button - use web_app for HTTPS, url for HTTP
       if (isHttps) {
         keyboard.push([
           {
             text: isArabic ? '🚀 فتح التطبيق' : '🚀 Open App',
             web_app: { url: miniAppUrl }
+          }
+        ]);
+      } else {
+        // For HTTP (development), use regular URL button that opens in browser
+        keyboard.push([
+          {
+            text: isArabic ? '🚀 فتح التطبيق' : '🚀 Open App',
+            url: miniAppUrl
           }
         ]);
       }
