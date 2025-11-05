@@ -43,9 +43,16 @@ export async function handleStart(ctx: BotContext) {
         }
       }
 
-      // Create new user
-      user = await ctx.prisma.user.create({
-        data: {
+      // Create new user with upsert to handle race conditions
+      user = await ctx.prisma.user.upsert({
+        where: { telegramId: String(telegramId) },
+        update: {
+          lastActiveAt: new Date(),
+          username: username || `user_${telegramId}`,
+          firstName,
+          lastName,
+        },
+        create: {
           telegramId: String(telegramId),
           username: username || `user_${telegramId}`,
           firstName,
