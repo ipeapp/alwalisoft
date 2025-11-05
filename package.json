@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "next build && pnpm build:bot",
+    "postinstall": "prisma generate",
+    "build": "prisma generate && next build && pnpm build:bot",
     "build:bot": "tsc -p tsconfig.bot.json",
     "dev": "next dev",
     "dev:bot": "tsx watch bot/index.ts",
