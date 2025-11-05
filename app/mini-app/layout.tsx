@@ -3,8 +3,8 @@ import Script from 'next/script';
 import { AuthProvider } from '@/lib/auth-context';
 
 export const metadata: Metadata = {
-  title: 'Telegram Rewards Bot',
-  description: 'Earn rewards by completing tasks',
+  title: 'بوت صدام الولي',
+  description: 'اكسب المكافآت من خلال إتمام المهام',
 };
 
 export const viewport = {

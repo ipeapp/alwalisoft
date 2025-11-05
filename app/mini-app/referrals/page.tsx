@@ -5,9 +5,11 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Users, Copy, Share2, ArrowLeft, Coins, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
+import { useAuth } from '@/lib/auth-context';
+import { ProtectedRoute } from '@/components/protected-route';
 
-export default function ReferralsPage() {
-  const [user, setUser] = useState<any>(null);
+function ReferralsContent() {
+  const { user: authUser } = useAuth();
   const [referrals, setReferrals] = useState([]);
   const [stats, setStats] = useState({
     total: 0,
@@ -18,26 +20,15 @@ export default function ReferralsPage() {
   });
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
-      const tg = window.Telegram.WebApp;
-      const initData = tg.initDataUnsafe;
-      if (initData.user) {
-        setUser(initData.user);
-        loadReferralData(initData.user.id);
-      }
+    if (authUser) {
+      loadReferralData(authUser.telegramId);
     }
-  }, []);
+  }, [authUser]);
 
-  const loadReferralData = async (telegramId: number) => {
+  const loadReferralData = async (telegramId: string) => {
     try {
       // Load user data for referral code
-      const userResponse = await fetch(`/api/users?telegramId=${telegramId}`);
-      if (userResponse.ok) {
-        const userData = await userResponse.json();
-        if (userData.success && userData.data) {
-          setUser({ ...user, referralCode: userData.data.referralCode });
-        }
-      }
+      // User data is already available from authUser
 
       // Load referral stats
       const statsResponse = await fetch(`/api/referrals?userId=${telegramId}`);
@@ -63,7 +54,7 @@ export default function ReferralsPage() {
 
   const copyReferralLink = () => {
     const botUsername = process.env.NEXT_PUBLIC_BOT_USERNAME || 'your_bot';
-    const referralLink = `https://t.me/${botUsername}?start=${user?.referralCode || 'ref_code'}`;
+    const referralLink = `https://t.me/${botUsername}?start=${authUser?.referralCode || 'ref_code'}`;
     
     if (typeof window !== 'undefined') {
       navigator.clipboard.writeText(referralLink);
@@ -75,7 +66,7 @@ export default function ReferralsPage() {
 
   const shareReferralLink = () => {
     const botUsername = process.env.NEXT_PUBLIC_BOT_USERNAME || 'your_bot';
-    const referralLink = `https://t.me/${botUsername}?start=${user?.referralCode || 'ref_code'}`;
+    const referralLink = `https://t.me/${botUsername}?start=${authUser?.referralCode || 'ref_code'}`;
     const shareText = `🎁 Join me and earn rewards!\n\n💰 Get bonus coins when you sign up using my referral link!\n\n${referralLink}`;
     
     if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
@@ -138,7 +129,7 @@ export default function ReferralsPage() {
           <div className="p-5">
             <h3 className="font-bold text-lg mb-3">Your Referral Link</h3>
             <div className="bg-black/30 rounded-lg p-3 mb-3 font-mono text-sm break-all">
-              {user?.referralCode ? `t.me/your_bot?start=${user.referralCode}` : 'Loading...'}
+              {authUser?.referralCode ? `t.me/your_bot?start=${authUser.referralCode}` : 'Loading...'}
             </div>
             <div className="grid grid-cols-2 gap-3">
               <Button
@@ -252,5 +243,13 @@ export default function ReferralsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ReferralsPage() {
+  return (
+    <ProtectedRoute>
+      <ReferralsContent />
+    </ProtectedRoute>
   );
 }

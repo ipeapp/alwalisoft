@@ -5,39 +5,39 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Zap, Target as TargetIcon, HelpCircle, ArrowLeft, Coins } from 'lucide-react';
 import Link from 'next/link';
+import { useAuth } from '@/lib/auth-context';
+import { ProtectedRoute } from '@/components/protected-route';
 
-export default function GamesPage() {
+function GamesContent() {
+  const { user } = useAuth();
   const [spinning, setSpinning] = useState(false);
   const [result, setResult] = useState<number | null>(null);
 
   const playLuckyWheel = async () => {
+    if (!user) return;
+    
     setSpinning(true);
     setResult(null);
 
     // Animate spinning
     setTimeout(async () => {
-      // Get user from Telegram
-      if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
-        const tg = window.Telegram.WebApp;
-        const userId = tg.initDataUnsafe?.user?.id;
+      try {
+        const response = await fetch('/api/games/lucky-wheel', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: user.telegramId })
+        });
 
-        if (userId) {
-          try {
-            const response = await fetch('/api/games/lucky-wheel', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ userId: String(userId) })
-            });
-
-            if (response.ok) {
-              const data = await response.json();
-              setResult(data.reward || 0);
-              tg.showAlert(`🎉 You won ${data.reward} coins!`);
-            }
-          } catch (error) {
-            console.error('Error playing game:', error);
+        if (response.ok) {
+          const data = await response.json();
+          setResult(data.reward || 0);
+          
+          if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
+            window.Telegram.WebApp.showAlert(`🎉 You won ${data.reward} coins!`);
           }
         }
+      } catch (error) {
+        console.error('Error playing game:', error);
       }
 
       setSpinning(false);
@@ -168,5 +168,13 @@ export default function GamesPage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+export default function GamesPage() {
+  return (
+    <ProtectedRoute>
+      <GamesContent />
+    </ProtectedRoute>
   );
 }

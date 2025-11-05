@@ -100,8 +100,8 @@ export default function LoginPage() {
           <div className="inline-block p-4 bg-gradient-to-br from-purple-600 to-blue-600 rounded-full mb-4 animate-pulse">
             <Shield className="w-16 h-16" />
           </div>
-          <h1 className="text-4xl font-bold mb-2">Welcome!</h1>
-          <p className="text-purple-300">مرحباً بك في تطبيق المكافآت</p>
+          <h1 className="text-4xl font-bold mb-2">بوت صدام الولي</h1>
+          <p className="text-purple-300">مرحباً بك في بوت المكافآت</p>
         </div>
 
         {/* Login Card */}

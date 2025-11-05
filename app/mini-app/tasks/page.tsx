@@ -5,6 +5,8 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Target, CheckCircle, Clock, Coins, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
+import { useAuth } from '@/lib/auth-context';
+import { ProtectedRoute } from '@/components/protected-route';
 
 interface Task {
   id: string;
@@ -16,7 +18,8 @@ interface Task {
   isCompleted?: boolean;
 }
 
-export default function TasksPage() {
+function TasksContent() {
+  const { user } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -41,27 +44,23 @@ export default function TasksPage() {
   };
 
   const completeTask = async (taskId: string) => {
-    // Get user from Telegram Web App
-    if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
-      const tg = window.Telegram.WebApp;
-      const userId = tg.initDataUnsafe?.user?.id;
+    if (!user) return;
+    
+    try {
+      const response = await fetch(`/api/tasks/${taskId}/complete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.telegramId })
+      });
       
-      if (userId) {
-        try {
-          const response = await fetch(`/api/tasks/${taskId}/complete`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId: String(userId) })
-          });
-          
-          if (response.ok) {
-            tg.showAlert('Task completed! ✅');
-            loadTasks(); // Reload tasks
-          }
-        } catch (error) {
-          console.error('Error completing task:', error);
+      if (response.ok) {
+        if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
+          window.Telegram.WebApp.showAlert('Task completed! ✅');
         }
+        loadTasks(); // Reload tasks
       }
+    } catch (error) {
+      console.error('Error completing task:', error);
     }
   };
 
@@ -154,5 +153,13 @@ export default function TasksPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function TasksPage() {
+  return (
+    <ProtectedRoute>
+      <TasksContent />
+    </ProtectedRoute>
   );
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { 
@@ -11,19 +12,15 @@ import {
   TrendingUp,
   Zap,
   Trophy,
-  Wallet
+  Wallet,
+  User as UserIcon
 } from 'lucide-react';
-
-declare global {
-  interface Window {
-    Telegram?: {
-      WebApp: any;
-    };
-  }
-}
+import Link from 'next/link';
+import { useAuth } from '@/lib/auth-context';
 
 export default function MiniAppPage() {
-  const [user, setUser] = useState<any>(null);
+  const { user: authUser, loading: authLoading } = useAuth();
+  const router = useRouter();
   const [stats, setStats] = useState({
     balance: 0,
     tasksCompleted: 0,
@@ -33,28 +30,33 @@ export default function MiniAppPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Initialize Telegram Web App
-    if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
-      const tg = window.Telegram.WebApp;
-      tg.ready();
-      tg.expand();
-      
-      // Set theme
-      tg.setHeaderColor('#000000');
-      tg.setBackgroundColor('#000000');
-      
-      // Get user data from Telegram
-      const initData = tg.initDataUnsafe;
-      if (initData.user) {
-        setUser(initData.user);
-        loadUserData(initData.user.id);
-      }
+    // Check if user is logged in
+    if (!authLoading && !authUser) {
+      router.push('/mini-app/login');
+      return;
     }
-  }, []);
 
-  const loadUserData = async (telegramId: number) => {
+    if (authUser) {
+      // Initialize Telegram Web App
+      if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
+        const tg = window.Telegram.WebApp;
+        tg.ready();
+        tg.expand();
+        
+        // Set theme
+        tg.setHeaderColor('#000000');
+        tg.setBackgroundColor('#000000');
+      }
+      
+      loadUserData();
+    }
+  }, [authUser, authLoading, router]);
+
+  const loadUserData = async () => {
+    if (!authUser) return;
+    
     try {
-      const response = await fetch(`/api/users?telegramId=${telegramId}`);
+      const response = await fetch(`/api/users?telegramId=${authUser.telegramId}`);
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.data) {
@@ -73,11 +75,6 @@ export default function MiniAppPage() {
     }
   };
 
-  const openSection = (section: string) => {
-    if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
-      window.Telegram.WebApp.openLink(`/mini-app/${section}`, { try_instant_view: true });
-    }
-  };
 
   if (loading) {
     return (
@@ -97,14 +94,16 @@ export default function MiniAppPage() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold">
-              {user?.first_name || 'User'} 👋
+              {authUser?.firstName || 'User'} 👋
             </h1>
             <p className="text-purple-300 text-sm">Level: {stats.level}</p>
           </div>
-          <div className="bg-white/10 backdrop-blur-md rounded-full px-4 py-2">
-            <Trophy className="w-5 h-5 text-yellow-400 inline mr-2" />
-            <span className="font-bold">{stats.level}</span>
-          </div>
+          <Link href="/mini-app/profile">
+            <div className="bg-white/10 backdrop-blur-md rounded-full px-4 py-2 cursor-pointer hover:bg-white/20 transition-colors">
+              <UserIcon className="w-5 h-5 text-purple-400 inline mr-2" />
+              <span className="font-bold">{stats.level}</span>
+            </div>
+          </Link>
         </div>
 
         {/* Balance Card */}
@@ -141,49 +140,45 @@ export default function MiniAppPage() {
       <div className="px-6 py-4">
         <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
         <div className="grid grid-cols-2 gap-4">
-          <Button
-            onClick={() => openSection('tasks')}
-            className="h-auto py-6 bg-gradient-to-br from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 border-0 shadow-lg"
-          >
-            <div className="text-center w-full">
-              <Target className="w-8 h-8 mx-auto mb-2" />
-              <p className="font-bold">Earn</p>
-              <p className="text-xs opacity-80">Complete Tasks</p>
-            </div>
-          </Button>
+          <Link href="/mini-app/tasks" className="block">
+            <Button className="h-auto py-6 bg-gradient-to-br from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 border-0 shadow-lg w-full">
+              <div className="text-center w-full">
+                <Target className="w-8 h-8 mx-auto mb-2" />
+                <p className="font-bold">Earn</p>
+                <p className="text-xs opacity-80">Complete Tasks</p>
+              </div>
+            </Button>
+          </Link>
 
-          <Button
-            onClick={() => openSection('games')}
-            className="h-auto py-6 bg-gradient-to-br from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 border-0 shadow-lg"
-          >
-            <div className="text-center w-full">
-              <Zap className="w-8 h-8 mx-auto mb-2" />
-              <p className="font-bold">Play</p>
-              <p className="text-xs opacity-80">Mini Games</p>
-            </div>
-          </Button>
+          <Link href="/mini-app/games" className="block">
+            <Button className="h-auto py-6 bg-gradient-to-br from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 border-0 shadow-lg w-full">
+              <div className="text-center w-full">
+                <Zap className="w-8 h-8 mx-auto mb-2" />
+                <p className="font-bold">Play</p>
+                <p className="text-xs opacity-80">Mini Games</p>
+              </div>
+            </Button>
+          </Link>
 
-          <Button
-            onClick={() => openSection('referrals')}
-            className="h-auto py-6 bg-gradient-to-br from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 border-0 shadow-lg"
-          >
-            <div className="text-center w-full">
-              <Users className="w-8 h-8 mx-auto mb-2" />
-              <p className="font-bold">Invite</p>
-              <p className="text-xs opacity-80">Refer Friends</p>
-            </div>
-          </Button>
+          <Link href="/mini-app/referrals" className="block">
+            <Button className="h-auto py-6 bg-gradient-to-br from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 border-0 shadow-lg w-full">
+              <div className="text-center w-full">
+                <Users className="w-8 h-8 mx-auto mb-2" />
+                <p className="font-bold">Invite</p>
+                <p className="text-xs opacity-80">Refer Friends</p>
+              </div>
+            </Button>
+          </Link>
 
-          <Button
-            onClick={() => openSection('rewards')}
-            className="h-auto py-6 bg-gradient-to-br from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 border-0 shadow-lg"
-          >
-            <div className="text-center w-full">
-              <Gift className="w-8 h-8 mx-auto mb-2" />
-              <p className="font-bold">Rewards</p>
-              <p className="text-xs opacity-80">Daily Bonus</p>
-            </div>
-          </Button>
+          <Link href="/mini-app/rewards" className="block">
+            <Button className="h-auto py-6 bg-gradient-to-br from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 border-0 shadow-lg w-full">
+              <div className="text-center w-full">
+                <Gift className="w-8 h-8 mx-auto mb-2" />
+                <p className="font-bold">Rewards</p>
+                <p className="text-xs opacity-80">Daily Bonus</p>
+              </div>
+            </Button>
+          </Link>
         </div>
       </div>
 
@@ -219,23 +214,27 @@ export default function MiniAppPage() {
 
       {/* Bottom Navigation */}
       <div className="fixed bottom-0 left-0 right-0 bg-black/80 backdrop-blur-lg border-t border-white/10 pb-safe">
-        <div className="grid grid-cols-4 gap-1 px-2 py-3">
-          <button className="flex flex-col items-center gap-1 py-2 text-purple-400">
+        <div className="grid grid-cols-5 gap-1 px-2 py-3">
+          <Link href="/mini-app" className="flex flex-col items-center gap-1 py-2 text-purple-400">
             <Coins className="w-6 h-6" />
             <span className="text-xs">Home</span>
-          </button>
-          <button className="flex flex-col items-center gap-1 py-2 text-gray-400 hover:text-white">
+          </Link>
+          <Link href="/mini-app/tasks" className="flex flex-col items-center gap-1 py-2 text-gray-400 hover:text-white">
             <Target className="w-6 h-6" />
             <span className="text-xs">Tasks</span>
-          </button>
-          <button className="flex flex-col items-center gap-1 py-2 text-gray-400 hover:text-white">
-            <Zap className="w-6 h-6" />
-            <span className="text-xs">Games</span>
-          </button>
-          <button className="flex flex-col items-center gap-1 py-2 text-gray-400 hover:text-white">
-            <Users className="w-6 h-6" />
-            <span className="text-xs">Refer</span>
-          </button>
+          </Link>
+          <Link href="/mini-app/wallet" className="flex flex-col items-center gap-1 py-2 text-gray-400 hover:text-white">
+            <Wallet className="w-6 h-6" />
+            <span className="text-xs">Wallet</span>
+          </Link>
+          <Link href="/mini-app/leaderboard" className="flex flex-col items-center gap-1 py-2 text-gray-400 hover:text-white">
+            <Trophy className="w-6 h-6" />
+            <span className="text-xs">Rank</span>
+          </Link>
+          <Link href="/mini-app/profile" className="flex flex-col items-center gap-1 py-2 text-gray-400 hover:text-white">
+            <UserIcon className="w-6 h-6" />
+            <span className="text-xs">Profile</span>
+          </Link>
         </div>
       </div>
     </div>
