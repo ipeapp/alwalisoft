@@ -1,15 +1,23 @@
-import { prisma } from '@/lib/prisma';
-import { successResponse, errorResponse } from '@/lib/api-response';
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {
   try {
+    const { PrismaClient } = await import('@prisma/client');
+    const prisma = new PrismaClient();
+
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
     const level = searchParams.get('level');
 
     if (!userId) {
-      return errorResponse('User ID is required');
+      await prisma.$disconnect();
+      return NextResponse.json({
+        success: false,
+        error: 'User ID is required'
+      }, { status: 400 });
     }
 
     // Get referral tree
@@ -36,12 +44,20 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: 'desc' },
     });
 
-    return successResponse({
-      tree: referralTree,
-      referrals,
+    await prisma.$disconnect();
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        tree: referralTree,
+        referrals,
+      }
     });
   } catch (error) {
     console.error('GET /api/referrals error:', error);
-    return errorResponse('Internal server error', 500);
+    return NextResponse.json({
+      success: false,
+      error: 'Internal server error'
+    }, { status: 500 });
   }
 }

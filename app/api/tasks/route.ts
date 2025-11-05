@@ -1,9 +1,13 @@
-import { prisma } from '@/lib/prisma';
-import { successResponse, errorResponse } from '@/lib/api-response';
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {
   try {
+    const { PrismaClient } = await import('@prisma/client');
+    const prisma = new PrismaClient();
+
     const { searchParams } = new URL(request.url);
     const category = searchParams.get('category');
     const type = searchParams.get('type');
@@ -43,23 +47,34 @@ export async function GET(request: NextRequest) {
       prisma.task.count({ where }),
     ]);
 
-    return successResponse({
-      tasks,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit),
-      },
+    await prisma.$disconnect();
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        tasks,
+        pagination: {
+          page,
+          limit,
+          total,
+          pages: Math.ceil(total / limit),
+        },
+      }
     });
   } catch (error) {
     console.error('GET /api/tasks error:', error);
-    return errorResponse('Internal server error', 500);
+    return NextResponse.json({
+      success: false,
+      error: 'Internal server error'
+    }, { status: 500 });
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
+    const { PrismaClient } = await import('@prisma/client');
+    const prisma = new PrismaClient();
+
     const body = await request.json();
     
     const {
@@ -89,7 +104,11 @@ export async function POST(request: NextRequest) {
 
     // Validate required fields
     if (!name || !description || !category || !type || !reward) {
-      return errorResponse('Missing required fields');
+      await prisma.$disconnect();
+      return NextResponse.json({
+        success: false,
+        error: 'Missing required fields'
+      }, { status: 400 });
     }
 
     const task = await prisma.task.create({
@@ -119,9 +138,18 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return successResponse(task, 'Task created successfully');
+    await prisma.$disconnect();
+
+    return NextResponse.json({
+      success: true,
+      data: task,
+      message: 'Task created successfully'
+    });
   } catch (error) {
     console.error('POST /api/tasks error:', error);
-    return errorResponse('Internal server error', 500);
+    return NextResponse.json({
+      success: false,
+      error: 'Internal server error'
+    }, { status: 500 });
   }
 }

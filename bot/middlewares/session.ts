@@ -24,13 +24,13 @@ export const sessionMiddleware: Middleware<BotContext> = async (ctx, next) => {
 
     // Check if user exists in database
     const user = await ctx.prisma.user.findUnique({
-      where: { telegramId: telegramId },
+      where: { telegramId: String(telegramId) },
     });
 
     if (user) {
       ctx.session = {
         userId: user.id,
-        telegramId: user.telegramId,
+        telegramId: String(user.telegramId),
         language: user.languageCode,
       };
 

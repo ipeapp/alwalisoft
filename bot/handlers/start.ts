@@ -18,7 +18,7 @@ export async function handleStart(ctx: BotContext) {
   try {
     // Check if user already exists
     let user = await ctx.prisma.user.findUnique({
-      where: { telegramId: telegramId },
+      where: { telegramId: String(telegramId) },
     });
 
     const isNewUser = !user;
@@ -46,7 +46,7 @@ export async function handleStart(ctx: BotContext) {
       // Create new user
       user = await ctx.prisma.user.create({
         data: {
-          telegramId: telegramId,
+          telegramId: String(telegramId),
           username: username || `user_${telegramId}`,
           firstName,
           lastName,

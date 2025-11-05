@@ -28,7 +28,7 @@ import { initializeServices } from './services';
 export interface BotContext extends Context {
   session?: {
     userId: string;
-    telegramId: number;
+    telegramId: string;
     language: string;
   };
   redis: Redis;
