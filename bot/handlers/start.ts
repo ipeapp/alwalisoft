@@ -128,24 +128,16 @@ export async function handleStart(ctx: BotContext) {
     // Check if URL is HTTPS (required for Web Apps)
     const isHttps = miniAppUrl.startsWith('https://');
     
-    // Build keyboard with Web App button (use URL button for HTTP in dev)
+    // Build keyboard with Web App button (only for HTTPS - Telegram requirement)
     const buildKeyboard = () => {
       const keyboard = [];
       
-      // Add Web App button - use web_app for HTTPS, url for HTTP
+      // Add Web App button ONLY if HTTPS (Telegram doesn't allow HTTP URLs in buttons)
       if (isHttps) {
         keyboard.push([
           {
             text: isArabic ? '🚀 فتح التطبيق' : '🚀 Open App',
             web_app: { url: miniAppUrl }
-          }
-        ]);
-      } else {
-        // For HTTP (development), use regular URL button that opens in browser
-        keyboard.push([
-          {
-            text: isArabic ? '🚀 فتح التطبيق' : '🚀 Open App',
-            url: miniAppUrl
           }
         ]);
       }
@@ -165,6 +157,13 @@ export async function handleStart(ctx: BotContext) {
       return keyboard;
     };
     
+    // Add development mode notice if not HTTPS
+    const devModeNotice = !isHttps && isArabic 
+      ? `\n\n📱 للوصول إلى التطبيق: ${miniAppUrl}`
+      : !isHttps 
+      ? `\n\n📱 Access the app at: ${miniAppUrl}`
+      : '';
+    
     if (isNewUser) {
       await ctx.reply(
         isArabic
@@ -172,12 +171,12 @@ export async function handleStart(ctx: BotContext) {
             `تم تسجيلك بنجاح في بوت المكافآت 🎁\n\n` +
             `💰 رصيدك الحالي: ${user.balance.toString()} عملة\n\n` +
             `🎯 ابدأ بإكمال المهام اليومية واكسب المزيد من العملات!\n` +
-            `👥 قم بدعوة أصدقائك واحصل على مكافآت إضافية!`
+            `👥 قم بدعوة أصدقائك واحصل على مكافآت إضافية!${devModeNotice}`
           : `🎉 Welcome ${firstName}!\n\n` +
             `You have successfully registered in the Rewards Bot 🎁\n\n` +
             `💰 Your current balance: ${user.balance.toString()} coins\n\n` +
             `🎯 Start completing daily tasks and earn more coins!\n` +
-            `👥 Invite your friends and get bonus rewards!`,
+            `👥 Invite your friends and get bonus rewards!${devModeNotice}`,
         {
           reply_markup: {
             inline_keyboard: buildKeyboard()
@@ -191,9 +190,9 @@ export async function handleStart(ctx: BotContext) {
       await ctx.reply(
         isArabic
           ? `👋 مرحباً بعودتك ${firstName}!\n\n` +
-            `💰 رصيدك الحالي: ${user.balance.toString()} عملة`
+            `💰 رصيدك الحالي: ${user.balance.toString()} عملة${devModeNotice}`
           : `👋 Welcome back ${firstName}!\n\n` +
-            `💰 Your current balance: ${user.balance.toString()} coins`,
+            `💰 Your current balance: ${user.balance.toString()} coins${devModeNotice}`,
         {
           reply_markup: {
             inline_keyboard: buildKeyboard()
