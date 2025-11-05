@@ -91,12 +91,19 @@ function GamesContent() {
       name: '🧠 Quiz Challenge',
       description: 'Answer questions correctly',
       action: () => {
-        if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
-          window.Telegram.WebApp.showAlert('🧠 قريباً! هذه اللعبة قيد التطوير');
+        try {
+          if (typeof window !== 'undefined') {
+            window.location.href = '/mini-app/games/quiz';
+          }
+        } catch (error) {
+          console.error('Navigation error:', error);
+          if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
+            window.Telegram.WebApp.showAlert('❌ حدث خطأ في فتح اللعبة');
+          }
         }
       },
       color: 'from-blue-600 to-cyan-600',
-      comingSoon: true
+      comingSoon: false
     }
   ];
 
