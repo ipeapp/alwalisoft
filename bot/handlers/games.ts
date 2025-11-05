@@ -98,6 +98,15 @@ async function handleGameStart(ctx: BotContext, gameType: string, isArabic: bool
     return;
   }
 
+  // Map gameType to GameType enum
+  const gameTypeMap: Record<string, string> = {
+    'target': 'TARGET_HIT',
+    'wheel': 'LUCKY_WHEEL',
+    'quiz': 'QUIZ_CHALLENGE'
+  };
+
+  const mappedGameType = gameTypeMap[gameType] || 'TARGET_HIT';
+
   // Check daily attempts
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -105,12 +114,12 @@ async function handleGameStart(ctx: BotContext, gameType: string, isArabic: bool
   const todaySessions = await ctx.prisma.gameSession.count({
     where: {
       userId,
-      gameType: gameType.toUpperCase() as any,
+      gameType: mappedGameType as any,
       startedAt: { gte: today },
     },
   });
 
-  const maxAttempts = gameType === 'wheel' ? 1 : gameType === 'quiz' ? 2 : 3;
+  const maxAttempts = gameType === 'wheel' ? 5 : gameType === 'quiz' ? 10 : 10;
 
   if (todaySessions >= maxAttempts) {
     await ctx.reply(
