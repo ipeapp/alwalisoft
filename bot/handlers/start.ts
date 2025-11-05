@@ -125,6 +125,38 @@ export async function handleStart(ctx: BotContext) {
       (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
     const miniAppUrl = `${baseUrl}/mini-app`;
     
+    // Check if URL is HTTPS (required for Web Apps)
+    const isHttps = miniAppUrl.startsWith('https://');
+    
+    // Build keyboard based on whether we can use Web App
+    const buildKeyboard = () => {
+      const keyboard = [];
+      
+      // Add Web App button only if HTTPS
+      if (isHttps) {
+        keyboard.push([
+          {
+            text: isArabic ? '🚀 فتح التطبيق' : '🚀 Open App',
+            web_app: { url: miniAppUrl }
+          }
+        ]);
+      }
+      
+      // Add standard buttons
+      keyboard.push(
+        [
+          { text: isArabic ? '💰 المهام' : '💰 Tasks', callback_data: 'tasks' },
+          { text: isArabic ? '🎮 الألعاب' : '🎮 Games', callback_data: 'games' }
+        ],
+        [
+          { text: isArabic ? '👥 الإحالات' : '👥 Referrals', callback_data: 'referrals' },
+          { text: isArabic ? '📊 الإحصائيات' : '📊 Stats', callback_data: 'stats' }
+        ]
+      );
+      
+      return keyboard;
+    };
+    
     if (isNewUser) {
       await ctx.reply(
         isArabic
@@ -132,32 +164,15 @@ export async function handleStart(ctx: BotContext) {
             `تم تسجيلك بنجاح في بوت المكافآت 🎁\n\n` +
             `💰 رصيدك الحالي: ${user.balance.toString()} عملة\n\n` +
             `🎯 ابدأ بإكمال المهام اليومية واكسب المزيد من العملات!\n` +
-            `👥 قم بدعوة أصدقائك واحصل على مكافآت إضافية!\n\n` +
-            `👇 اضغط على الزر لفتح التطبيق:`
+            `👥 قم بدعوة أصدقائك واحصل على مكافآت إضافية!`
           : `🎉 Welcome ${firstName}!\n\n` +
             `You have successfully registered in the Rewards Bot 🎁\n\n` +
             `💰 Your current balance: ${user.balance.toString()} coins\n\n` +
             `🎯 Start completing daily tasks and earn more coins!\n` +
-            `👥 Invite your friends and get bonus rewards!\n\n` +
-            `👇 Click the button to open the app:`,
+            `👥 Invite your friends and get bonus rewards!`,
         {
           reply_markup: {
-            inline_keyboard: [
-              [
-                {
-                  text: isArabic ? '🚀 فتح التطبيق' : '🚀 Open App',
-                  web_app: { url: miniAppUrl }
-                }
-              ],
-              [
-                { text: isArabic ? '💰 المهام' : '💰 Tasks', callback_data: 'tasks' },
-                { text: isArabic ? '🎮 الألعاب' : '🎮 Games', callback_data: 'games' }
-              ],
-              [
-                { text: isArabic ? '👥 الإحالات' : '👥 Referrals', callback_data: 'referrals' },
-                { text: isArabic ? '📊 الإحصائيات' : '📊 Stats', callback_data: 'stats' }
-              ]
-            ]
+            inline_keyboard: buildKeyboard()
           }
         }
       );
@@ -168,29 +183,12 @@ export async function handleStart(ctx: BotContext) {
       await ctx.reply(
         isArabic
           ? `👋 مرحباً بعودتك ${firstName}!\n\n` +
-            `💰 رصيدك الحالي: ${user.balance.toString()} عملة\n\n` +
-            `👇 اضغط على الزر لفتح التطبيق:`
+            `💰 رصيدك الحالي: ${user.balance.toString()} عملة`
           : `👋 Welcome back ${firstName}!\n\n` +
-            `💰 Your current balance: ${user.balance.toString()} coins\n\n` +
-            `👇 Click the button to open the app:`,
+            `💰 Your current balance: ${user.balance.toString()} coins`,
         {
           reply_markup: {
-            inline_keyboard: [
-              [
-                {
-                  text: isArabic ? '🚀 فتح التطبيق' : '🚀 Open App',
-                  web_app: { url: miniAppUrl }
-                }
-              ],
-              [
-                { text: isArabic ? '💰 المهام' : '💰 Tasks', callback_data: 'tasks' },
-                { text: isArabic ? '🎮 الألعاب' : '🎮 Games', callback_data: 'games' }
-              ],
-              [
-                { text: isArabic ? '👥 الإحالات' : '👥 Referrals', callback_data: 'referrals' },
-                { text: isArabic ? '📊 الإحصائيات' : '📊 Stats', callback_data: 'stats' }
-              ]
-            ]
+            inline_keyboard: buildKeyboard()
           }
         }
       );
