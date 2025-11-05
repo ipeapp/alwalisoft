@@ -113,6 +113,10 @@ export async function handleStart(ctx: BotContext) {
     // Send welcome message
     const isArabic = languageCode === 'ar';
     
+    // Get Mini App URL
+    const miniAppUrl = process.env.NEXT_PUBLIC_APP_URL || 
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://your-app.vercel.app');
+    
     if (isNewUser) {
       await ctx.reply(
         isArabic
@@ -121,14 +125,33 @@ export async function handleStart(ctx: BotContext) {
             `💰 رصيدك الحالي: ${user.balance.toString()} عملة\n\n` +
             `🎯 ابدأ بإكمال المهام اليومية واكسب المزيد من العملات!\n` +
             `👥 قم بدعوة أصدقائك واحصل على مكافآت إضافية!\n\n` +
-            `📋 استخدم القائمة أدناه للتصفح:`
+            `👇 اضغط على الزر لفتح التطبيق:`
           : `🎉 Welcome ${firstName}!\n\n` +
             `You have successfully registered in the Rewards Bot 🎁\n\n` +
             `💰 Your current balance: ${user.balance.toString()} coins\n\n` +
             `🎯 Start completing daily tasks and earn more coins!\n` +
             `👥 Invite your friends and get bonus rewards!\n\n` +
-            `📋 Use the menu below to navigate:`,
-        getMainKeyboard(isArabic)
+            `👇 Click the button to open the app:`,
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [
+                {
+                  text: isArabic ? '🚀 فتح التطبيق' : '🚀 Open App',
+                  web_app: { url: `${miniAppUrl}/mini-app` }
+                }
+              ],
+              [
+                { text: isArabic ? '💰 المهام' : '💰 Tasks', callback_data: 'tasks' },
+                { text: isArabic ? '🎮 الألعاب' : '🎮 Games', callback_data: 'games' }
+              ],
+              [
+                { text: isArabic ? '👥 الإحالات' : '👥 Referrals', callback_data: 'referrals' },
+                { text: isArabic ? '📊 الإحصائيات' : '📊 Stats', callback_data: 'stats' }
+              ]
+            ]
+          }
+        }
       );
 
       // Send verification task if applicable
@@ -138,11 +161,30 @@ export async function handleStart(ctx: BotContext) {
         isArabic
           ? `👋 مرحباً بعودتك ${firstName}!\n\n` +
             `💰 رصيدك الحالي: ${user.balance.toString()} عملة\n\n` +
-            `📋 استخدم القائمة أدناه:`
+            `👇 اضغط على الزر لفتح التطبيق:`
           : `👋 Welcome back ${firstName}!\n\n` +
             `💰 Your current balance: ${user.balance.toString()} coins\n\n` +
-            `📋 Use the menu below:`,
-        getMainKeyboard(isArabic)
+            `👇 Click the button to open the app:`,
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [
+                {
+                  text: isArabic ? '🚀 فتح التطبيق' : '🚀 Open App',
+                  web_app: { url: `${miniAppUrl}/mini-app` }
+                }
+              ],
+              [
+                { text: isArabic ? '💰 المهام' : '💰 Tasks', callback_data: 'tasks' },
+                { text: isArabic ? '🎮 الألعاب' : '🎮 Games', callback_data: 'games' }
+              ],
+              [
+                { text: isArabic ? '👥 الإحالات' : '👥 Referrals', callback_data: 'referrals' },
+                { text: isArabic ? '📊 الإحصائيات' : '📊 Stats', callback_data: 'stats' }
+              ]
+            ]
+          }
+        }
       );
     }
   } catch (error) {
