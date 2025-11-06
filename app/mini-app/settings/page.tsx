@@ -3,10 +3,9 @@
 import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { 
-  ArrowLeft, Settings as SettingsIcon, Bell, Globe, 
-  Shield, HelpCircle, Info, LogOut, Moon, Sun,
-  ChevronRight, User, Smartphone
+import {
+  ArrowLeft, User, Globe, Bell, Shield, Info,
+  ChevronRight, Moon, Sun, Volume2, VolumeX, Lock
 } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
@@ -15,13 +14,14 @@ import { ProtectedRoute } from '@/components/protected-route';
 function SettingsContent() {
   const { user, logout } = useAuth();
   const [notifications, setNotifications] = useState(true);
+  const [sound, setSound] = useState(true);
+  const [darkMode, setDarkMode] = useState(true);
   const [language, setLanguage] = useState('ar');
-  const [theme, setTheme] = useState<'light' | 'dark'>('dark');
 
   const handleLogout = () => {
     if (window.Telegram?.WebApp) {
       window.Telegram.WebApp.showConfirm(
-        'Are you sure you want to logout?',
+        'هل أنت متأكد من تسجيل الخروج؟',
         (confirmed) => {
           if (confirmed) {
             logout();
@@ -29,76 +29,11 @@ function SettingsContent() {
         }
       );
     } else {
-      logout();
+      if (confirm('هل أنت متأكد من تسجيل الخروج؟')) {
+        logout();
+      }
     }
   };
-
-  const settingsSections = [
-    {
-      title: 'Account',
-      items: [
-        {
-          icon: <User className="w-5 h-5 text-purple-400" />,
-          label: 'Edit Profile',
-          value: user?.username || '',
-          action: () => {}
-        },
-        {
-          icon: <Shield className="w-5 h-5 text-blue-400" />,
-          label: 'Privacy & Security',
-          value: 'Manage',
-          action: () => {}
-        },
-        {
-          icon: <Smartphone className="w-5 h-5 text-green-400" />,
-          label: 'Telegram ID',
-          value: user?.telegramId || '',
-          action: null
-        }
-      ]
-    },
-    {
-      title: 'Preferences',
-      items: [
-        {
-          icon: <Bell className="w-5 h-5 text-yellow-400" />,
-          label: 'Notifications',
-          value: notifications ? 'On' : 'Off',
-          action: () => setNotifications(!notifications),
-          toggle: true
-        },
-        {
-          icon: <Globe className="w-5 h-5 text-cyan-400" />,
-          label: 'Language',
-          value: language === 'ar' ? 'العربية' : 'English',
-          action: () => setLanguage(language === 'ar' ? 'en' : 'ar')
-        },
-        {
-          icon: theme === 'dark' ? <Moon className="w-5 h-5 text-indigo-400" /> : <Sun className="w-5 h-5 text-orange-400" />,
-          label: 'Theme',
-          value: theme === 'dark' ? 'Dark' : 'Light',
-          action: () => setTheme(theme === 'dark' ? 'light' : 'dark')
-        }
-      ]
-    },
-    {
-      title: 'Support',
-      items: [
-        {
-          icon: <HelpCircle className="w-5 h-5 text-pink-400" />,
-          label: 'Help Center',
-          value: '',
-          action: () => {}
-        },
-        {
-          icon: <Info className="w-5 h-5 text-gray-400" />,
-          label: 'About',
-          value: 'v1.0.0',
-          action: () => {}
-        }
-      ]
-    }
-  ];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-black text-white">
@@ -111,101 +46,227 @@ function SettingsContent() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-2xl font-bold">Settings</h1>
-            <p className="text-sm text-purple-300">الإعدادات</p>
+            <h1 className="text-2xl font-bold">⚙️ الإعدادات</h1>
+            <p className="text-sm text-purple-300">إدارة حسابك وتفضيلاتك</p>
           </div>
         </div>
       </div>
 
       {/* Content */}
       <div className="px-6 py-6 pb-24">
-        {/* User Info Card */}
-        <Card className="bg-gradient-to-r from-purple-600 to-blue-600 border-0 shadow-2xl mb-6">
-          <div className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-2xl font-bold">
-                {user?.firstName?.charAt(0).toUpperCase()}
-              </div>
-              <div className="flex-1">
-                <h2 className="text-xl font-bold mb-1">
-                  {user?.firstName} {user?.lastName}
-                </h2>
-                <p className="text-purple-200 text-sm">@{user?.username}</p>
-                <div className="flex items-center gap-2 mt-2">
-                  <span className="px-3 py-1 bg-white/20 rounded-full text-xs font-medium">
-                    {user?.level}
-                  </span>
-                </div>
-              </div>
+        {/* User Info */}
+        <Card className="bg-gradient-to-r from-purple-600/30 to-blue-600/30 border-purple-500/50 mb-6">
+          <div className="p-5 flex items-center gap-4">
+            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-2xl font-bold">
+              {user?.firstName?.charAt(0) || 'U'}
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg font-bold">{user?.firstName || 'المستخدم'}</h3>
+              <p className="text-sm text-purple-200">@{user?.username || 'username'}</p>
+              <p className="text-xs text-purple-300 mt-1">
+                ID: {user?.telegramId}
+              </p>
             </div>
           </div>
         </Card>
 
         {/* Settings Sections */}
-        {settingsSections.map((section, idx) => (
-          <div key={idx} className="mb-6">
-            <h3 className="text-sm font-semibold text-gray-400 mb-3 px-2">
-              {section.title}
-            </h3>
-            
-            <Card className="bg-white/5 backdrop-blur-md border-white/10">
-              <div className="divide-y divide-white/10">
-                {section.items.map((item, itemIdx) => (
-                  <button
-                    key={itemIdx}
-                    onClick={item.action || undefined}
-                    disabled={!item.action}
-                    className={`w-full p-4 flex items-center gap-4 ${
-                      item.action ? 'hover:bg-white/5 active:bg-white/10' : ''
-                    } transition-colors`}
-                  >
-                    <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0">
-                      {item.icon}
+        <div className="space-y-4">
+          {/* Account Settings */}
+          <div>
+            <h3 className="text-sm font-bold text-gray-400 mb-3 px-2">الحساب</h3>
+            <Card className="bg-white/5 backdrop-blur-md border-white/10 overflow-hidden">
+              <Link href="/mini-app/profile">
+                <button className="w-full p-4 flex items-center justify-between hover:bg-white/5 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
+                      <User className="w-5 h-5 text-blue-400" />
                     </div>
-                    
-                    <div className="flex-1 text-left">
-                      <p className="font-medium">{item.label}</p>
-                      {item.value && (
-                        <p className="text-sm text-gray-400">{item.value}</p>
-                      )}
+                    <div className="text-left">
+                      <p className="font-bold">الملف الشخصي</p>
+                      <p className="text-xs text-gray-400">عرض وتعديل معلوماتك</p>
                     </div>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-gray-400" />
+                </button>
+              </Link>
 
-                    {item.action && (
-                      <ChevronRight className="w-5 h-5 text-gray-400" />
-                    )}
+              <div className="h-px bg-white/10"></div>
 
-                    {item.toggle && (
-                      <div className={`w-12 h-6 rounded-full ${
-                        notifications ? 'bg-green-500' : 'bg-gray-600'
-                      } relative transition-colors`}>
-                        <div className={`absolute top-1 ${
-                          notifications ? 'right-1' : 'left-1'
-                        } w-4 h-4 bg-white rounded-full transition-all`}></div>
-                      </div>
-                    )}
-                  </button>
-                ))}
-              </div>
+              <button className="w-full p-4 flex items-center justify-between hover:bg-white/5 transition-colors">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center">
+                    <Shield className="w-5 h-5 text-purple-400" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-bold">الخصوصية والأمان</p>
+                    <p className="text-xs text-gray-400">إدارة خصوصيتك</p>
+                  </div>
+                </div>
+                <ChevronRight className="w-5 h-5 text-gray-400" />
+              </button>
             </Card>
           </div>
-        ))}
 
-        {/* Logout Button */}
-        <Card className="bg-red-500/10 border-red-500/30">
-          <button
-            onClick={handleLogout}
-            className="w-full p-4 flex items-center justify-center gap-3 hover:bg-red-500/20 transition-colors"
-          >
-            <LogOut className="w-5 h-5 text-red-400" />
-            <span className="font-bold text-red-400">Logout</span>
-          </button>
-        </Card>
+          {/* App Settings */}
+          <div>
+            <h3 className="text-sm font-bold text-gray-400 mb-3 px-2">التطبيق</h3>
+            <Card className="bg-white/5 backdrop-blur-md border-white/10 overflow-hidden">
+              <button 
+                onClick={() => setNotifications(!notifications)}
+                className="w-full p-4 flex items-center justify-between hover:bg-white/5 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center">
+                    <Bell className="w-5 h-5 text-yellow-400" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-bold">الإشعارات</p>
+                    <p className="text-xs text-gray-400">
+                      {notifications ? 'مفعّلة' : 'معطّلة'}
+                    </p>
+                  </div>
+                </div>
+                <div className={`w-12 h-6 rounded-full transition-colors ${
+                  notifications ? 'bg-green-500' : 'bg-gray-600'
+                } relative`}>
+                  <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${
+                    notifications ? 'right-1' : 'left-1'
+                  }`}></div>
+                </div>
+              </button>
 
-        {/* App Info */}
+              <div className="h-px bg-white/10"></div>
+
+              <button 
+                onClick={() => setSound(!sound)}
+                className="w-full p-4 flex items-center justify-between hover:bg-white/5 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center">
+                    {sound ? (
+                      <Volume2 className="w-5 h-5 text-green-400" />
+                    ) : (
+                      <VolumeX className="w-5 h-5 text-gray-400" />
+                    )}
+                  </div>
+                  <div className="text-left">
+                    <p className="font-bold">الأصوات</p>
+                    <p className="text-xs text-gray-400">
+                      {sound ? 'مفعّلة' : 'معطّلة'}
+                    </p>
+                  </div>
+                </div>
+                <div className={`w-12 h-6 rounded-full transition-colors ${
+                  sound ? 'bg-green-500' : 'bg-gray-600'
+                } relative`}>
+                  <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${
+                    sound ? 'right-1' : 'left-1'
+                  }`}></div>
+                </div>
+              </button>
+
+              <div className="h-px bg-white/10"></div>
+
+              <button 
+                onClick={() => setDarkMode(!darkMode)}
+                className="w-full p-4 flex items-center justify-between hover:bg-white/5 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-indigo-500/20 flex items-center justify-center">
+                    {darkMode ? (
+                      <Moon className="w-5 h-5 text-indigo-400" />
+                    ) : (
+                      <Sun className="w-5 h-5 text-yellow-400" />
+                    )}
+                  </div>
+                  <div className="text-left">
+                    <p className="font-bold">الوضع الداكن</p>
+                    <p className="text-xs text-gray-400">
+                      {darkMode ? 'مفعّل' : 'معطّل'}
+                    </p>
+                  </div>
+                </div>
+                <div className={`w-12 h-6 rounded-full transition-colors ${
+                  darkMode ? 'bg-indigo-500' : 'bg-gray-600'
+                } relative`}>
+                  <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${
+                    darkMode ? 'right-1' : 'left-1'
+                  }`}></div>
+                </div>
+              </button>
+
+              <div className="h-px bg-white/10"></div>
+
+              <button className="w-full p-4 flex items-center justify-between hover:bg-white/5 transition-colors">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-pink-500/20 flex items-center justify-center">
+                    <Globe className="w-5 h-5 text-pink-400" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-bold">اللغة</p>
+                    <p className="text-xs text-gray-400">
+                      {language === 'ar' ? 'العربية' : 'English'}
+                    </p>
+                  </div>
+                </div>
+                <ChevronRight className="w-5 h-5 text-gray-400" />
+              </button>
+            </Card>
+          </div>
+
+          {/* Info & Support */}
+          <div>
+            <h3 className="text-sm font-bold text-gray-400 mb-3 px-2">المعلومات والدعم</h3>
+            <Card className="bg-white/5 backdrop-blur-md border-white/10 overflow-hidden">
+              <Link href="/mini-app/help">
+                <button className="w-full p-4 flex items-center justify-between hover:bg-white/5 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
+                      <Info className="w-5 h-5 text-blue-400" />
+                    </div>
+                    <div className="text-left">
+                      <p className="font-bold">المساعدة والأسئلة الشائعة</p>
+                      <p className="text-xs text-gray-400">احصل على المساعدة</p>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-gray-400" />
+                </button>
+              </Link>
+
+              <div className="h-px bg-white/10"></div>
+
+              <button className="w-full p-4 flex items-center justify-between hover:bg-white/5 transition-colors">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-gray-500/20 flex items-center justify-center">
+                    <Info className="w-5 h-5 text-gray-400" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-bold">عن التطبيق</p>
+                    <p className="text-xs text-gray-400">الإصدار 2.0.0</p>
+                  </div>
+                </div>
+                <ChevronRight className="w-5 h-5 text-gray-400" />
+              </button>
+            </Card>
+          </div>
+
+          {/* Logout */}
+          <Card className="bg-red-600/20 border-red-500/50 overflow-hidden">
+            <button 
+              onClick={handleLogout}
+              className="w-full p-4 flex items-center justify-center gap-3 hover:bg-red-600/30 transition-colors"
+            >
+              <Lock className="w-5 h-5 text-red-400" />
+              <span className="font-bold text-red-400">تسجيل الخروج</span>
+            </button>
+          </Card>
+        </div>
+
+        {/* Version Info */}
         <div className="mt-8 text-center text-sm text-gray-500">
           <p>بوت صدام الولي</p>
-          <p className="mt-1">Version 1.0.0</p>
-          <p className="mt-2">© 2024 All rights reserved</p>
+          <p className="text-xs mt-1">الإصدار 2.0.0 © 2025</p>
         </div>
       </div>
     </div>
