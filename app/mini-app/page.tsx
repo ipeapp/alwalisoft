@@ -64,20 +64,49 @@ export default function MiniAppPage() {
     if (!authUser) return;
     
     try {
-      const response = await fetch(`/api/users?telegramId=${authUser.telegramId}`);
+      // Add cache busting and explicit headers
+      const response = await fetch(`/api/users?telegramId=${authUser.telegramId}&_t=${Date.now()}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
+        }
+      });
+      
+      console.log('📊 Fetching user data for:', authUser.telegramId);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('📊 API Response:', data);
+        
         if (data.success && data.data) {
-          setStats({
+          const userData = {
             balance: data.data.balance || 0,
             tasksCompleted: data.data.tasksCompleted || 0,
             referrals: data.data.referralCount || 0,
             level: data.data.level || 'BEGINNER'
-          });
+          };
+          
+          console.log('📊 Setting stats:', userData);
+          setStats(userData);
+          
+          // Update localStorage with latest data
+          if (authUser) {
+            const updatedUser = {
+              ...authUser,
+              balance: userData.balance,
+              level: userData.level
+            };
+            localStorage.setItem('telegram_user', JSON.stringify(updatedUser));
+          }
+        } else {
+          console.error('❌ Invalid data structure:', data);
         }
+      } else {
+        console.error('❌ API error:', response.status);
       }
     } catch (error) {
-      console.error('Error loading user data:', error);
+      console.error('❌ Error loading user data:', error);
     } finally {
       setLoading(false);
     }

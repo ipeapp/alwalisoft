@@ -3,6 +3,7 @@ import { nanoid } from 'nanoid';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
+export const revalidate = 0; // Disable caching
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,6 +13,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
     const telegramId = searchParams.get('telegramId');
+    
+    console.log('🔍 API Request - telegramId:', telegramId, 'id:', id);
 
     if (id) {
       const user = await prisma.user.findUnique({
@@ -38,6 +41,8 @@ export async function GET(request: NextRequest) {
     }
 
     if (telegramId) {
+      console.log('🔍 Searching for user with telegramId:', telegramId);
+      
       const user = await prisma.user.findUnique({
         where: { telegramId: String(telegramId) },
         include: {
@@ -45,6 +50,14 @@ export async function GET(request: NextRequest) {
           wallet: true,
         },
       });
+
+      console.log('📦 User found:', user ? {
+        id: user.id,
+        username: user.username,
+        balance: user.balance,
+        referralCount: user.referralCount,
+        tasksCompleted: user.tasksCompleted
+      } : 'null');
 
       if (!user) {
         await prisma.$disconnect();
@@ -55,9 +68,17 @@ export async function GET(request: NextRequest) {
       }
 
       await prisma.$disconnect();
+      
+      // Add no-cache headers
       return NextResponse.json({
         success: true,
         data: user
+      }, {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
       });
     }
 
