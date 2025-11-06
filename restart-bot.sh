@@ -1,42 +1,33 @@
 #!/bin/bash
 
-# Script to restart bot with correct permissions
-# Usage: ./restart-bot.sh
+echo "🔄 Restarting Telegram Bot..."
 
-echo "🔧 Fixing database permissions..."
-cd /workspace
-chmod 666 prisma/dev.db
-chmod 777 prisma/
-
-echo "🛑 Stopping bot..."
+# Kill all bot processes
 pkill -9 -f "bot/index"
+pkill -9 -f "tsx watch"
 sleep 2
 
-echo "🚀 Starting bot..."
+# Fix database permissions
+chmod 666 prisma/dev.db
+chmod 777 prisma
+
+# Clean old logs
 rm -f bot.log
+
+# Start bot
 nohup pnpm dev:bot > bot.log 2>&1 &
+
+# Wait for bot to start
 sleep 5
 
+# Show status
 echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "✅ Bot Status:"
+ps aux | grep "bot/index" | grep -v grep | wc -l | xargs -I {} echo "  Running processes: {}"
+
+echo ""
+echo "📋 Last 10 log lines:"
+tail -10 bot.log
+
+echo ""
 echo "✅ Bot restarted successfully!"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo ""
-
-# Check if bot is running
-if ps aux | grep -v grep | grep "bot/index" > /dev/null; then
-    echo "✅ Bot is running:"
-    ps aux | grep -v grep | grep "bot/index" | head -1
-    echo ""
-    echo "📋 View logs:"
-    echo "   tail -f bot.log"
-    echo ""
-    echo "🧪 Test bot:"
-    echo "   Telegram → @makeittooeasy_bot → /start"
-else
-    echo "❌ Bot failed to start!"
-    echo "Check logs: tail -50 bot.log"
-fi
-
-echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
