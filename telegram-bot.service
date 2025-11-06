@@ -1,0 +1,17 @@
+[Unit]
+Description=Telegram Rewards Bot
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/workspace
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/pnpm dev:bot
+Restart=always
+RestartSec=10
+StandardOutput=append:/workspace/bot.log
+StandardError=append:/workspace/bot-error.log
+
+[Install]
+WantedBy=multi-user.target
