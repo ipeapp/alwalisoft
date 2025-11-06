@@ -55,7 +55,7 @@ function TasksContent() {
       
       if (response.ok) {
         if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
-          window.Telegram.WebApp.showAlert('Task completed! ✅');
+          window.Telegram.WebApp.showAlert('تم إكمال المهمة! ✅');
         }
         loadTasks(); // Reload tasks
       }
@@ -84,8 +84,8 @@ function TasksContent() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-2xl font-bold">Tasks</h1>
-            <p className="text-sm text-purple-300">Complete tasks to earn coins</p>
+            <h1 className="text-2xl font-bold">المهام</h1>
+            <p className="text-sm text-purple-300">أكمل المهام لكسب النقاط</p>
           </div>
         </div>
       </div>
@@ -95,12 +95,12 @@ function TasksContent() {
         {loading ? (
           <div className="text-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500 mx-auto"></div>
-            <p className="mt-4 text-gray-400">Loading tasks...</p>
+            <p className="mt-4 text-gray-400">جارٍ تحميل المهام...</p>
           </div>
         ) : tasks.length === 0 ? (
           <div className="text-center py-12">
             <Target className="w-16 h-16 mx-auto text-gray-600 mb-4" />
-            <p className="text-gray-400">No tasks available</p>
+            <p className="text-gray-400">لا توجد مهام متاحة</p>
           </div>
         ) : (
           <div className="space-y-4">
