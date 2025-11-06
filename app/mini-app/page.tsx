@@ -21,7 +21,7 @@ import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 
 export default function MiniAppPage() {
-  const { user: authUser, loading: authLoading } = useAuth();
+  const { user: authUser, loading: authLoading, login } = useAuth();
   const router = useRouter();
   const [stats, setStats] = useState({
     balance: 0,
@@ -32,20 +32,8 @@ export default function MiniAppPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Wait for auth to finish loading before checking
-    if (authLoading) {
-      return;
-    }
-
-    // If not logged in after loading finished, redirect to login
-    if (!authUser) {
-      window.location.href = '/mini-app/login';
-      return;
-    }
-
-    // User is logged in - initialize app
-    if (authUser) {
-      // Initialize Telegram Web App
+    const initApp = async () => {
+      // Initialize Telegram Web App first
       if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
         const tg = window.Telegram.WebApp;
         tg.ready();
@@ -54,11 +42,69 @@ export default function MiniAppPage() {
         // Set theme
         tg.setHeaderColor('#000000');
         tg.setBackgroundColor('#000000');
+        
+        // Auto-login from Telegram if not already logged in
+        const initData = tg.initDataUnsafe;
+        if (initData.user && !authUser && !authLoading) {
+          console.log('🔐 Auto-login attempt from Telegram data');
+          await autoLoginFromTelegram(initData.user);
+          return; // Will trigger re-render after login
+        }
+      }
+
+      // Wait for auth to finish loading
+      if (authLoading) {
+        return;
+      }
+
+      // If not logged in after checking Telegram, redirect to login
+      if (!authUser) {
+        console.log('⚠️ No user found, redirecting to login...');
+        window.location.href = '/mini-app/login';
+        return;
+      }
+
+      // User is logged in - load data
+      loadUserData();
+    };
+
+    initApp();
+  }, [authUser, authLoading]);
+
+  const autoLoginFromTelegram = async (telegramUser: any) => {
+    try {
+      console.log('🔄 Attempting auto-login for telegramId:', telegramUser.id);
+      
+      // Try to get existing user
+      let response = await fetch(`/api/users?telegramId=${telegramUser.id}`);
+      let data = await response.json();
+      
+      // If user exists, login
+      if (response.ok && data.success && data.data) {
+        console.log('✅ User found, logging in...');
+        const userData = {
+          id: data.data.id,
+          telegramId: data.data.telegramId,
+          username: data.data.username,
+          firstName: data.data.firstName,
+          lastName: data.data.lastName,
+          balance: data.data.balance,
+          level: data.data.level,
+          referralCode: data.data.referralCode
+        };
+        
+        login(userData);
+        return;
       }
       
-      loadUserData();
+      // User doesn't exist - redirect to proper login
+      console.log('⚠️ User not found, need to register');
+      window.location.href = '/mini-app/login';
+    } catch (error) {
+      console.error('❌ Auto-login failed:', error);
+      window.location.href = '/mini-app/login';
     }
-  }, [authUser, authLoading]);
+  };
 
   const loadUserData = async () => {
     if (!authUser) return;
