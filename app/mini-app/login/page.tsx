@@ -16,7 +16,8 @@ export default function LoginPage() {
     // Check if already logged in
     const storedUser = localStorage.getItem('telegram_user');
     if (storedUser) {
-      router.push('/mini-app');
+      // Use window.location for clean redirect
+      window.location.href = '/mini-app';
       return;
     }
 
@@ -67,10 +68,8 @@ export default function LoginPage() {
         
         localStorage.setItem('telegram_user', JSON.stringify(userData));
         
-        // Redirect to dashboard
-        setTimeout(() => {
-          router.push('/mini-app');
-        }, 300);
+        // Redirect immediately with window.location for clean navigation
+        window.location.href = '/mini-app';
         return;
       }
       
@@ -106,10 +105,8 @@ export default function LoginPage() {
         
         localStorage.setItem('telegram_user', JSON.stringify(userData));
         
-        // Redirect to dashboard
-        setTimeout(() => {
-          router.push('/mini-app');
-        }, 300);
+        // Redirect immediately with window.location for clean navigation
+        window.location.href = '/mini-app';
         return;
       }
       
@@ -129,10 +126,8 @@ export default function LoginPage() {
       
       localStorage.setItem('telegram_user', JSON.stringify(tempUserData));
       
-      // Still allow access
-      setTimeout(() => {
-        router.push('/mini-app');
-      }, 300);
+      // Still allow access - redirect immediately
+      window.location.href = '/mini-app';
     } catch (err) {
       console.error('Login error:', err);
       
@@ -150,10 +145,8 @@ export default function LoginPage() {
       
       localStorage.setItem('telegram_user', JSON.stringify(tempUserData));
       
-      // Redirect anyway - better UX
-      setTimeout(() => {
-        router.push('/mini-app');
-      }, 300);
+      // Redirect anyway - better UX - use window.location
+      window.location.href = '/mini-app';
     } finally {
       setLoading(false);
     }

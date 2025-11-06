@@ -32,12 +32,18 @@ export default function MiniAppPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user is logged in
-    if (!authLoading && !authUser) {
-      router.push('/mini-app/login');
+    // Wait for auth to finish loading before checking
+    if (authLoading) {
       return;
     }
 
+    // If not logged in after loading finished, redirect to login
+    if (!authUser) {
+      window.location.href = '/mini-app/login';
+      return;
+    }
+
+    // User is logged in - initialize app
     if (authUser) {
       // Initialize Telegram Web App
       if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
@@ -52,7 +58,7 @@ export default function MiniAppPage() {
       
       loadUserData();
     }
-  }, [authUser, authLoading, router]);
+  }, [authUser, authLoading]);
 
   const loadUserData = async () => {
     if (!authUser) return;
@@ -78,7 +84,7 @@ export default function MiniAppPage() {
   };
 
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-black flex items-center justify-center">
         <div className="text-center">
