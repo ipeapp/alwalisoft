@@ -36,11 +36,22 @@ function ProfileContent() {
   }, []);
 
   const loadStats = async () => {
+    if (!user) return;
+    
     try {
-      const response = await fetch('/api/users/stats');
+      const response = await fetch(`/api/users/stats?telegramId=${user.telegramId}&_t=${Date.now()}`, {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
+        }
+      });
+      
+      console.log('📊 Loading profile stats for:', user.telegramId);
+      
       if (response.ok) {
         const data = await response.json();
-        if (data.success) {
+        console.log('📊 Profile stats response:', data);
+        
+        if (data.success && data.data) {
           setStats(data.data);
         }
       }

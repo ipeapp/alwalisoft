@@ -37,9 +37,18 @@ export default function AdminUsersPage() {
 
   const loadUsers = async () => {
     try {
-      const response = await fetch('/api/users/all');
+      const response = await fetch(`/api/users/all?_t=${Date.now()}`, {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
+        }
+      });
+      
+      console.log('📊 Loading users for admin...');
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('📊 Users data:', data);
+        
         if (data.success) {
           setUsers(data.data || []);
         }

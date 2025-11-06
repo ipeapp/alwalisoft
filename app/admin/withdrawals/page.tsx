@@ -35,9 +35,18 @@ export default function AdminWithdrawalsPage() {
 
   const loadWithdrawals = async () => {
     try {
-      const response = await fetch('/api/withdrawals/all');
+      const response = await fetch(`/api/withdrawals/all?_t=${Date.now()}`, {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
+        }
+      });
+      
+      console.log('📊 Loading withdrawals for admin...');
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('📊 Withdrawals data:', data);
+        
         if (data.success) {
           setWithdrawals(data.data || []);
         }

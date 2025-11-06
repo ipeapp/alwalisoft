@@ -25,9 +25,18 @@ export default function AdminDashboard() {
 
   const loadStats = async () => {
     try {
-      const response = await fetch('/api/admin/stats');
+      const response = await fetch(`/api/admin/stats?_t=${Date.now()}`, {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
+        }
+      });
+      
+      console.log('📊 Loading admin stats...');
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('📊 Admin stats:', data);
+        
         if (data.success) {
           setStats(data.data);
         }

@@ -34,10 +34,19 @@ export default function AdminTasksPage() {
 
   const loadTasks = async () => {
     try {
-      const response = await fetch('/api/tasks?limit=50');
+      const response = await fetch(`/api/tasks?limit=50&active=all&_t=${Date.now()}`, {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
+        }
+      });
+      
+      console.log('📊 Loading tasks for admin...');
+      
       if (response.ok) {
         const data = await response.json();
-        if (data.success) {
+        console.log('📊 Tasks data:', data);
+        
+        if (data.success && data.data.tasks) {
           setTasks(data.data.tasks || []);
         }
       }
