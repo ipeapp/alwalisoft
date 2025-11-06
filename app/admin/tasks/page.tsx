@@ -294,26 +294,21 @@ export default function AdminTasksPage() {
                       {task.isActive ? <ToggleRight className="w-4 h-4 mr-1" /> : <ToggleLeft className="w-4 h-4 mr-1" />}
                       {task.isActive ? 'نشط' : 'معطّل'}
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="text-blue-400 hover:bg-blue-500/20"
-                    >
-                      <Eye className="w-4 h-4 mr-1" />
-                      عرض
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="text-green-400 hover:bg-green-500/20"
-                    >
-                      <Edit className="w-4 h-4 mr-1" />
-                      تعديل
-                    </Button>
+                    <Link href={`/admin/tasks/${task.id}/edit`}>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-green-400 hover:bg-green-500/20"
+                      >
+                        <Edit className="w-4 h-4 mr-1" />
+                        تعديل
+                      </Button>
+                    </Link>
                     <Button
                       size="sm"
                       variant="ghost"
                       className="text-red-400 hover:bg-red-500/20"
+                      onClick={() => deleteTask(task.id, task.name)}
                     >
                       <Trash2 className="w-4 h-4 mr-1" />
                       حذف
