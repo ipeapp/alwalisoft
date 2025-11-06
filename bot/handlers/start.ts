@@ -89,15 +89,23 @@ export async function handleStart(ctx: BotContext) {
       logger.info(`New user registered: ${telegramId} (${username})`);
     } else {
       // Update existing user
-      await ctx.prisma.user.update({
-        where: { id: user.id },
-        data: {
-          lastActiveAt: new Date(),
-          username: username || user.username,
-          firstName: firstName || user.firstName,
-          lastName: lastName || user.lastName,
-        },
-      });
+      if (user) {
+        await ctx.prisma.user.update({
+          where: { id: user.id },
+          data: {
+            lastActiveAt: new Date(),
+            username: username || user.username,
+            firstName: firstName || user.firstName,
+            lastName: lastName || user.lastName,
+          },
+        });
+      }
+    }
+
+    // Ensure user exists at this point
+    if (!user) {
+      logger.error('User should exist at this point but is null');
+      return;
     }
 
     // Create session

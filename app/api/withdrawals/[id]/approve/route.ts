@@ -5,14 +5,15 @@ export const runtime = 'nodejs';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { PrismaClient } = await import('@prisma/client');
     const prisma = new PrismaClient();
 
     const { txHash, notes } = await request.json();
-    const withdrawalId = params.id;
+    const resolvedParams = await params;
+    const withdrawalId = resolvedParams.id;
 
     if (!txHash) {
       await prisma.$disconnect();

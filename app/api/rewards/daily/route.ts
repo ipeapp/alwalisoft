@@ -22,7 +22,8 @@ export async function GET(req: NextRequest) {
     prisma = new PrismaClient();
 
     const user = await prisma.user.findUnique({
-      where: { telegramId: String(userId) }
+      where: { telegramId: String(userId) },
+      include: { statistics: true }
     });
 
     if (!user) {
@@ -32,14 +33,14 @@ export async function GET(req: NextRequest) {
       }, { status: 404 });
     }
 
-    // Check last daily claim
+    // Check last daily claim from statistics
     const now = new Date();
-    const lastClaim = user.lastDailyReward;
+    const lastLoginAt = user.statistics?.lastLoginAt;
     let canClaim = true;
-    let streak = user.dailyStreak || 0;
+    let streak = user.statistics?.currentStreak || 0;
 
-    if (lastClaim) {
-      const hoursSinceLastClaim = (now.getTime() - lastClaim.getTime()) / (1000 * 60 * 60);
+    if (lastLoginAt) {
+      const hoursSinceLastClaim = (now.getTime() - lastLoginAt.getTime()) / (1000 * 60 * 60);
       
       // Can only claim once per day (24 hours)
       if (hoursSinceLastClaim < 24) {
@@ -59,12 +60,14 @@ export async function GET(req: NextRequest) {
       data: {
         canClaim,
         streak,
-        lastClaim
+        lastClaim: lastLoginAt
       }
     });
   } catch (error) {
     console.error('Error checking daily reward:', error);
-    await prisma.$disconnect();
+    if (prisma) {
+      await prisma.$disconnect();
+    }
     
     return NextResponse.json({
       success: false,
@@ -89,7 +92,8 @@ export async function POST(req: NextRequest) {
     }
 
     const user = await prisma.user.findUnique({
-      where: { id: userId }
+      where: { id: userId },
+      include: { statistics: true }
     });
 
     if (!user) {
@@ -100,9 +104,16 @@ export async function POST(req: NextRequest) {
       }, { status: 404 });
     }
 
+    // Ensure statistics exist
+    if (!user.statistics) {
+      await prisma.userStatistics.create({
+        data: { userId: user.id }
+      });
+    }
+
     // Check if can claim
     const now = new Date();
-    const lastClaim = user.lastDailyReward;
+    const lastClaim = user.statistics?.lastLoginAt;
     
     if (lastClaim) {
       const hoursSinceLastClaim = (now.getTime() - lastClaim.getTime()) / (1000 * 60 * 60);
@@ -117,7 +128,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Calculate streak and reward
-    let newStreak = (user.dailyStreak || 0) + 1;
+    let newStreak = (user.statistics?.currentStreak || 0) + 1;
     if (lastClaim) {
       const hoursSinceLastClaim = (now.getTime() - lastClaim.getTime()) / (1000 * 60 * 60);
       if (hoursSinceLastClaim > 48) {
@@ -130,23 +141,35 @@ export async function POST(req: NextRequest) {
     const rewardIndex = Math.min(newStreak - 1, rewards.length - 1);
     const reward = rewards[rewardIndex];
 
-    // Update user
-    await prisma.user.update({
-      where: { id: userId },
-      data: {
-        balance: user.balance + reward,
-        dailyStreak: newStreak,
-        lastDailyReward: now
-      }
-    });
+    // Update user and statistics
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: userId },
+        data: {
+          balance: { increment: reward }
+        }
+      }),
+      prisma.userStatistics.update({
+        where: { userId },
+        data: {
+          currentStreak: newStreak,
+          longestStreak: Math.max(newStreak, user.statistics?.longestStreak || 0),
+          lastLoginAt: now,
+          dailyEarnings: { increment: reward },
+          totalEarnings: { increment: reward }
+        }
+      })
+    ]);
 
-    // Create transaction
-    await prisma.transaction.create({
+    // Create reward ledger record
+    await prisma.rewardLedger.create({
       data: {
         userId,
         type: 'DAILY_BONUS',
         amount: reward,
-        description: `Daily reward - Day ${newStreak}`
+        description: `Daily reward - Day ${newStreak}`,
+        balanceBefore: user.balance,
+        balanceAfter: user.balance + reward
       }
     });
 
