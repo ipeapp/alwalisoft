@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { 
   ArrowLeft, Wallet as WalletIcon, ArrowUpRight, ArrowDownRight,
   Clock, CheckCircle, XCircle, Coins, Plus, TrendingUp, DollarSign,
-  CreditCard, Send, Download
+  CreditCard, Send, Download, ChevronRight
 } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
@@ -54,13 +54,26 @@ function WalletContent() {
         }
       }
 
-      // Calculate stats (mock data for now)
-      setStats({
-        totalEarned: user?.balance || 0,
-        totalWithdrawn: 0,
-        pendingWithdrawals: 0,
-        thisWeekEarnings: 2500
-      });
+      // Calculate stats from API
+      const statsResponse = await fetch(`/api/users?telegramId=${user?.telegramId}`);
+      if (statsResponse.ok) {
+        const statsData = await statsResponse.json();
+        if (statsData.success && statsData.data) {
+          setStats({
+            totalEarned: statsData.data.balance || 0,
+            totalWithdrawn: 0,
+            pendingWithdrawals: withdrawals.filter((w: WithdrawalRequest) => w.status === 'PENDING').length,
+            thisWeekEarnings: 0 // يمكن حسابه من transactions لاحقاً
+          });
+        }
+      } else {
+        setStats({
+          totalEarned: user?.balance || 0,
+          totalWithdrawn: 0,
+          pendingWithdrawals: 0,
+          thisWeekEarnings: 0
+        });
+      }
     } catch (error) {
       console.error('Error loading wallet data:', error);
     } finally {

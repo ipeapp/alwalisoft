@@ -25,6 +25,11 @@ export async function GET(req: NextRequest) {
 
     // Get total tasks
     const totalTasks = await prisma.task.count();
+    
+    // Get active tasks
+    const activeTasks = await prisma.task.count({
+      where: { isActive: true }
+    });
 
     // Get completed tasks
     const completedTasks = await prisma.taskCompletion.count();
@@ -49,6 +54,7 @@ export async function GET(req: NextRequest) {
         totalUsers,
         activeUsers,
         totalTasks,
+        activeTasks,
         completedTasks,
         totalBalance,
         totalWithdrawals,
