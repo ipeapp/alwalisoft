@@ -1,18 +1,7 @@
-import type { Metadata } from 'next';
-import Script from 'next/script';
+'use client';
+
 import { AuthProvider } from '@/lib/auth-context';
-
-export const metadata: Metadata = {
-  title: 'بوت صدام الولي',
-  description: 'اكسب المكافآت من خلال إتمام المهام',
-};
-
-export const viewport = {
-  width: 'device-width',
-  initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
-};
+import Script from 'next/script';
 
 export default function MiniAppLayout({
   children,
@@ -20,14 +9,12 @@ export default function MiniAppLayout({
   children: React.ReactNode;
 }) {
   return (
-    <>
-      <Script 
-        src="https://telegram.org/js/telegram-web-app.js" 
+    <AuthProvider>
+      <Script
+        src="https://telegram.org/js/telegram-web-app.js"
         strategy="beforeInteractive"
       />
-      <AuthProvider>
-        {children}
-      </AuthProvider>
-    </>
+      {children}
+    </AuthProvider>
   );
 }

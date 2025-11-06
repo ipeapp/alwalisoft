@@ -8,9 +8,8 @@ const _geist = Geist({ subsets: ["latin"] })
 const _geistMono = Geist_Mono({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Rewards Bot - Admin Dashboard",
-  description: "Manage tasks, users, and rewards for your Telegram bot",
-  generator: "v0.app",
+  title: "بوت صدام الولي - Telegram Rewards Bot",
+  description: "احصل على مكافآت من إكمال المهام، اللعب، ودعوة الأصدقاء",
 }
 
 export default function RootLayout({

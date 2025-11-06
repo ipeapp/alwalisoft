@@ -1,0 +1,7 @@
+_admin_backup/
+app/_admin_backup/
+*.md
+!README.md
+.git/
+*.log
+bot.log
