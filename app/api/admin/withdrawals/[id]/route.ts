@@ -6,12 +6,12 @@ export const runtime = 'nodejs';
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   let prisma: PrismaClient | null = null;
 
   try {
-    const { id } = params;
+    const { id } = await params;
     const { status } = await req.json();
 
     if (!['APPROVED', 'REJECTED', 'COMPLETED'].includes(status)) {
