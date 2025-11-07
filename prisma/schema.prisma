@@ -65,6 +65,7 @@ model User {
   userSettings        UserSettings?
   dailyBonuses        DailyBonus[]
   userAchievements    UserAchievement[]
+  adWatches           AdWatch[]
   
   @@index([telegramId])
   @@index([referralCode])
@@ -645,6 +646,47 @@ model AuditLog {
   @@index([action])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+// ============================================================================
+// ADVERTISING & MONETIZATION
+// ============================================================================
+
+enum AdType {
+  REWARDED_VIDEO
+  INTERSTITIAL
+  BANNER
+}
+
+model AdWatch {
+  id                  String              @id @default(uuid())
+  userId              String              @map("user_id")
+  user                User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  adType              AdType              @map("ad_type")
+  adUnitId            String?             @map("ad_unit_id")
+  reward              Int                 @default(0)
+  completed           Boolean             @default(false)
+  watchedAt           DateTime            @default(now()) @map("watched_at")
+  
+  @@index([userId, adType])
+  @@index([watchedAt])
+  @@map("ad_watches")
+}
+
+model AdRevenue {
+  id                  String              @id @default(uuid())
+  date                DateTime            @default(now())
+  adType              AdType              @map("ad_type")
+  impressions         Int                 @default(0)
+  clicks              Int                 @default(0)
+  revenue             Float               @default(0)
+  eCPM                Float               @default(0) @map("ecpm")
+  createdAt           DateTime            @default(now()) @map("created_at")
+  updatedAt           DateTime            @updatedAt @map("updated_at")
+  
+  @@unique([date, adType])
+  @@index([date])
+  @@map("ad_revenue")
 }
 
 // ============================================================================

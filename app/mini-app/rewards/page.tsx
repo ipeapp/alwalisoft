@@ -10,6 +10,7 @@ import {
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { ProtectedRoute } from '@/components/protected-route';
+import { RewardedAdButton } from '@/components/rewarded-ad-button';
 
 interface DailyReward {
   canClaim: boolean;
@@ -240,6 +241,38 @@ function RewardsContent() {
                     <p className="text-sm text-yellow-100">عملة</p>
                   </div>
                 </div>
+              </div>
+            </Card>
+
+            {/* Watch Ad for Reward */}
+            <Card className="bg-gradient-to-br from-purple-600 to-blue-600 border-0 shadow-xl mb-6 overflow-hidden relative">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl"></div>
+              
+              <div className="p-6 relative text-center">
+                <div className="mb-4">
+                  <Zap className="w-16 h-16 mx-auto text-yellow-400 animate-bounce" />
+                </div>
+                <h3 className="text-2xl font-bold mb-2">شاهد إعلان واربح!</h3>
+                <p className="text-purple-100 mb-6">
+                  احصل على 500 عملة مجاناً بمشاهدة إعلان قصير
+                </p>
+                
+                {user?.id && (
+                  <RewardedAdButton
+                    userId={user.id}
+                    rewardAmount={500}
+                    buttonText="شاهد إعلان واربح 500 عملة"
+                    onRewardEarned={(amount) => {
+                      refreshUser();
+                      loadWeeklyStats();
+                    }}
+                    className="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-bold py-4 text-lg"
+                  />
+                )}
+                
+                <p className="text-xs text-purple-200 mt-3">
+                  💡 يمكنك مشاهدة حتى 10 إعلانات يومياً
+                </p>
               </div>
             </Card>
 

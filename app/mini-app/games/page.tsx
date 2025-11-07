@@ -7,6 +7,7 @@ import { Zap, Target as TargetIcon, HelpCircle, ArrowLeft, Coins } from 'lucide-
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { ProtectedRoute } from '@/components/protected-route';
+import { RewardedAdButton } from '@/components/rewarded-ad-button';
 
 function GamesContent() {
   const { user } = useAuth();
@@ -157,6 +158,35 @@ function GamesContent() {
             </div>
           </Card>
         )}
+
+        {/* Watch Ad for Bonus */}
+        <Card className="mb-6 bg-gradient-to-r from-green-600 to-teal-600 border-0 shadow-xl overflow-hidden relative">
+          <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full blur-3xl animate-pulse"></div>
+          
+          <div className="p-6 relative">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="w-16 h-16 bg-yellow-500 rounded-full flex items-center justify-center animate-bounce">
+                <Zap className="w-8 h-8 text-black" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-2xl font-bold mb-1">مكافأة إضافية!</h3>
+                <p className="text-green-100 text-sm">شاهد إعلان واحصل على 500 عملة</p>
+              </div>
+            </div>
+            
+            {user?.id && (
+              <RewardedAdButton
+                userId={user.id}
+                rewardAmount={500}
+                buttonText="شاهد الإعلان"
+                onRewardEarned={() => {
+                  loadStats();
+                }}
+                className="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-bold py-3"
+              />
+            )}
+          </div>
+        </Card>
 
         {/* Games Grid */}
         <div className="space-y-4">
