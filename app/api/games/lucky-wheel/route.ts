@@ -85,12 +85,9 @@ export async function POST(req: NextRequest) {
       // Update statistics
       await tx.userStatistics.upsert({
         where: { userId: user.id },
-        update: {
-          gamesPlayed: { increment: 1 }
-        },
+        update: {},
         create: {
-          userId: user.id,
-          gamesPlayed: 1
+          userId: user.id
         }
       });
 

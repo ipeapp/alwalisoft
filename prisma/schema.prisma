@@ -253,6 +253,9 @@ enum RewardType {
   PROMOTION
   CARD_SALE
   GEM_EXCHANGE
+  ACHIEVEMENT
+  AD_REWARD
+  TASK_REWARD
 }
 
 model RewardLedger {

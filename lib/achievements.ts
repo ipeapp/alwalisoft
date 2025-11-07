@@ -121,9 +121,10 @@ export async function checkAchievements(userId: string) {
         await updateAchievementProgress(userId, 'streak_30', stats.currentStreak);
       }
       
-      // التحقق من إنجازات الألعاب
-      if (stats.gamesPlayed >= 10) {
-        await updateAchievementProgress(userId, 'gamer', stats.gamesPlayed);
+      // التحقق من إنجازات الألعاب (يمكن حسابها من GameSession)
+      const totalGames = await prisma.gameSession.count({ where: { userId } });
+      if (totalGames >= 10) {
+        await updateAchievementProgress(userId, 'gamer', totalGames);
       }
     }
     

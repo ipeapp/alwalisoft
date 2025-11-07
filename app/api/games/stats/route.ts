@@ -5,7 +5,7 @@ import { handleApiError, ApiException } from '@/lib/error-handler';
 export const dynamic = 'force-dynamic';
 
 /**
- * GET /api/games/stats
+ * GET /api/games/stats?userId=xxx
  * جلب إحصائيات الألعاب للمستخدم
  */
 export async function GET(req: NextRequest) {
@@ -16,18 +16,10 @@ export async function GET(req: NextRequest) {
       throw new ApiException('User ID is required', 400, 'MISSING_USER_ID');
     }
     
-    const user = await prisma.user.findUnique({
-      where: { id: userId }
-    });
-    
-    if (!user) {
-      throw new ApiException('User not found', 404, 'USER_NOT_FOUND');
-    }
-    
-    // عدد الألعاب اليوم
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
+    // Count today's plays
     const playsToday = await prisma.gameSession.count({
       where: {
         userId,
@@ -35,14 +27,19 @@ export async function GET(req: NextRequest) {
       }
     });
     
-    // أفضل مكافأة
+    // Get all game sessions count
+    const totalGamesPlayed = await prisma.gameSession.count({
+      where: { userId }
+    });
+    
+    // Get best reward
     const bestReward = await prisma.gameSession.findFirst({
       where: { userId },
       orderBy: { reward: 'desc' },
       select: { reward: true }
     });
     
-    // إحصائيات لكل لعبة
+    // Get stats per game type
     const gameStats = await prisma.gameSession.groupBy({
       by: ['gameType'],
       where: { userId },
@@ -51,17 +48,12 @@ export async function GET(req: NextRequest) {
       _max: { reward: true }
     });
     
-    // إجمالي الإحصائيات
-    const statistics = await prisma.userStatistics.findUnique({
-      where: { userId }
-    });
-    
     return NextResponse.json({
       success: true,
       data: {
         playsToday,
         bestReward: bestReward?.reward || 0,
-        totalGamesPlayed: statistics?.gamesPlayed || 0,
+        totalGamesPlayed,
         gameStats: gameStats.map(stat => ({
           gameType: stat.gameType,
           plays: stat._count.gameType,

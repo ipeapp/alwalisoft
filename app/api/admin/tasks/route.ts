@@ -29,15 +29,12 @@ export async function POST(req: NextRequest) {
     
     const task = await prisma.task.create({
       data: {
-        name: name || title,
-        title,
+        name: name || title || 'New Task',
         description,
         reward: parseInt(reward),
         difficulty: difficulty || 'MEDIUM',
         category: category || 'SOCIAL',
         type: type || 'SOCIAL_FOLLOW',
-        actionUrl,
-        verificationData: verificationData || {},
         isActive: true
       }
     });

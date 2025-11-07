@@ -10,10 +10,10 @@ export const dynamic = 'force-dynamic';
  */
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await context.params;
     const body = await req.json();
     const { action, balance } = body;
     
@@ -86,10 +86,10 @@ export async function PATCH(
  */
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await context.params;
     
     if (!id) {
       throw new ApiException('User ID is required', 400, 'MISSING_ID');

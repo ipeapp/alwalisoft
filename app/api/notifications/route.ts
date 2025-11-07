@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { handleApiError, ApiException } from '@/lib/error-handler';
-import { validateRequired } from '@/lib/api-helpers';
 
 /**
  * GET /api/notifications
@@ -60,10 +59,11 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    
-    validateRequired(body, ['userId', 'type', 'title', 'message']);
-    
     const { userId, type, title, message, data } = body;
+    
+    if (!userId || !type || !title || !message) {
+      throw new ApiException('Required fields missing', 400, 'MISSING_FIELDS');
+    }
     
     // التحقق من المستخدم
     const user = await prisma.user.findUnique({
