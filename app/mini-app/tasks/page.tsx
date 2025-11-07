@@ -11,10 +11,13 @@ import { ProtectedRoute } from '@/components/protected-route';
 interface Task {
   id: string;
   name: string;
+  title?: string;
   description: string;
   reward: number;
   difficulty: string;
   category: string;
+  type: string;
+  actionUrl?: string;
   isCompleted?: boolean;
 }
 
@@ -22,6 +25,8 @@ function TasksContent() {
   const { user } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
+  const [verifyingTask, setVerifyingTask] = useState<Task | null>(null);
+  const [verificationInput, setVerificationInput] = useState('');
 
   useEffect(() => {
     loadTasks();
@@ -59,44 +64,109 @@ function TasksContent() {
     }
   };
 
-  const completeTask = async (taskId: string) => {
-    if (!user) {
-      console.error('❌ No user found');
-      return;
+  const startTask = (task: Task) => {
+    // فتح الرابط إذا كان موجود
+    if (task.actionUrl) {
+      window.open(task.actionUrl, '_blank');
     }
     
+    // عرض modal للتحقق إذا كانت المهمة تتطلب تحقق
+    if (['TWITTER_FOLLOW', 'TELEGRAM_JOIN', 'YOUTUBE_SUBSCRIBE'].includes(task.type)) {
+      setVerifyingTask(task);
+    } else {
+      // إكمال مباشر للمهام البسيطة
+      completeTaskDirect(task.id);
+    }
+  };
+  
+  const completeTaskDirect = async (taskId: string) => {
+    if (!user) return;
+    
     try {
-      console.log('📤 Completing task:', taskId, 'for user:', user.id);
-      
       const response = await fetch(`/api/tasks/${taskId}/complete`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          userId: user.id,  // Use database user ID
+          userId: user.id,
           verified: false 
         })
       });
       
       const data = await response.json();
-      console.log('📦 Task completion response:', data);
       
       if (response.ok && data.success) {
         if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
           window.Telegram.WebApp.showAlert(`✅ تم إكمال المهمة!\n🪙 ربحت ${data.data.rewardAmount} عملة`);
         }
-        loadTasks(); // Reload tasks
+        loadTasks();
       } else {
-        const errorMsg = data.error || 'فشل إكمال المهمة';
-        console.error('❌ Task completion failed:', errorMsg);
         if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
-          window.Telegram.WebApp.showAlert(`❌ ${errorMsg}`);
+          window.Telegram.WebApp.showAlert(`❌ ${data.error || 'فشل إكمال المهمة'}`);
         }
       }
     } catch (error) {
-      console.error('❌ Error completing task:', error);
-      if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
-        window.Telegram.WebApp.showAlert('❌ حدث خطأ. حاول مرة أخرى.');
+      console.error('Error completing task:', error);
+    }
+  };
+  
+  const verifyAndComplete = async () => {
+    if (!user || !verifyingTask) return;
+    
+    let verificationData: any = {};
+    
+    // تجهيز بيانات التحقق حسب نوع المهمة
+    switch (verifyingTask.type) {
+      case 'TWITTER_FOLLOW':
+        verificationData = {
+          username: verificationInput,
+          targetHandle: verifyingTask.actionUrl?.replace('https://twitter.com/', '') || '',
+          taskName: verifyingTask.title || verifyingTask.name
+        };
+        break;
+      
+      case 'TELEGRAM_JOIN':
+        verificationData = {
+          channelUsername: verifyingTask.actionUrl?.replace('https://t.me/', '') || '',
+          taskName: verifyingTask.title || verifyingTask.name
+        };
+        break;
+      
+      case 'YOUTUBE_SUBSCRIBE':
+        verificationData = {
+          googleId: verificationInput,
+          channelId: verifyingTask.actionUrl?.split('/channel/')[1] || '',
+          taskName: verifyingTask.title || verifyingTask.name
+        };
+        break;
+    }
+    
+    try {
+      const response = await fetch('/api/tasks/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          taskId: verifyingTask.id,
+          verificationData
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok && data.success) {
+        if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
+          window.Telegram.WebApp.showAlert(`✅ تم التحقق بنجاح!\n🪙 ربحت ${data.data.reward} عملة`);
+        }
+        setVerifyingTask(null);
+        setVerificationInput('');
+        loadTasks();
+      } else {
+        if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
+          window.Telegram.WebApp.showAlert(`❌ ${data.message || 'فشل التحقق'}`);
+        }
       }
+    } catch (error) {
+      console.error('Error verifying task:', error);
     }
   };
 
@@ -174,7 +244,7 @@ function TasksContent() {
 
                     {!task.isCompleted && (
                       <Button
-                        onClick={() => completeTask(task.id)}
+                        onClick={() => startTask(task)}
                         className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
                       >
                         <Clock className="w-4 h-4 mr-2" />
@@ -188,6 +258,78 @@ function TasksContent() {
           </div>
         )}
       </div>
+
+      {/* Verification Modal */}
+      {verifyingTask && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <Card className="w-full max-w-md bg-gradient-to-br from-purple-900 to-blue-900 border-purple-500/50 shadow-2xl">
+            <div className="p-6">
+              {/* Header */}
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold">✅ تحقق من المهمة</h2>
+                <button
+                  onClick={() => {
+                    setVerifyingTask(null);
+                    setVerificationInput('');
+                  }}
+                  className="text-gray-400 hover:text-white"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <p className="text-gray-300">
+                  {verifyingTask.type === 'TWITTER_FOLLOW' && 'الرجاء إدخال اسم حسابك على Twitter:'}
+                  {verifyingTask.type === 'TELEGRAM_JOIN' && 'سيتم التحقق تلقائياً من اشتراكك في القناة:'}
+                  {verifyingTask.type === 'YOUTUBE_SUBSCRIBE' && 'الرجاء إدخال معرف Google الخاص بك:'}
+                </p>
+
+                {/* Input (ليس للـ Telegram) */}
+                {verifyingTask.type !== 'TELEGRAM_JOIN' && (
+                  <input
+                    type="text"
+                    value={verificationInput}
+                    onChange={(e) => setVerificationInput(e.target.value)}
+                    placeholder={
+                      verifyingTask.type === 'TWITTER_FOLLOW' 
+                        ? '@username' 
+                        : 'Your Google ID'
+                    }
+                    className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-purple-500"
+                  />
+                )}
+
+                {/* Info */}
+                <div className="bg-blue-500/20 border border-blue-500/50 rounded-lg p-3">
+                  <p className="text-xs text-blue-200">
+                    💡 تأكد من إكمال المهمة المطلوبة قبل التحقق
+                  </p>
+                </div>
+
+                {/* Buttons */}
+                <div className="flex gap-3 mt-6">
+                  <Button
+                    onClick={() => {
+                      setVerifyingTask(null);
+                      setVerificationInput('');
+                    }}
+                    className="flex-1 bg-white/10 hover:bg-white/20 border-0"
+                  >
+                    إلغاء
+                  </Button>
+                  <Button
+                    onClick={verifyAndComplete}
+                    className="flex-1 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 border-0"
+                  >
+                    تحقق الآن
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
