@@ -1,24 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
+import { handleApiError, ApiException } from '@/lib/error-handler';
+import { notifyGameWin } from '@/lib/notifications';
+import { checkSpecificAchievement } from '@/lib/achievements';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 export async function POST(req: NextRequest) {
-  let prisma: PrismaClient | null = null;
-
   try {
     const body = await req.json();
     const { userId, score, reward } = body;
 
     if (!userId || score === undefined || !reward) {
-      return NextResponse.json({
-        success: false,
-        message: 'معرف المستخدم والنقاط والمكافأة مطلوبة'
-      }, { status: 400 });
+      throw new ApiException('User ID, score and reward are required', 400, 'MISSING_FIELDS');
     }
-
-    prisma = new PrismaClient();
 
     // Find user
     const user = await prisma.user.findUnique({
@@ -26,73 +22,84 @@ export async function POST(req: NextRequest) {
     });
 
     if (!user) {
-      return NextResponse.json({
-        success: false,
-        message: 'المستخدم غير موجود'
-      }, { status: 404 });
+      throw new ApiException('User not found', 404, 'USER_NOT_FOUND');
     }
 
-    // Check daily play limit (10 plays per day for target hit)
+    // Check daily play limit (10 plays per day)
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    const todayPlays = await prisma.rewardLedger.count({
+    const todayPlays = await prisma.gameSession.count({
       where: {
         userId: user.id,
-        type: 'GAME_WIN',
-        description: { contains: 'Target Hit' },
-        createdAt: { gte: today }
+        gameType: 'TARGET_HIT',
+        startedAt: { gte: today }
       }
     });
 
     if (todayPlays >= 10) {
-      return NextResponse.json({
-        success: false,
-        message: 'لقد وصلت للحد الأقصى من اللعب اليوم (10 مرات)'
-      }, { status: 429 });
+      throw new ApiException('Daily play limit reached (10 plays)', 429, 'RATE_LIMIT');
     }
 
     // Validate reward (max 500 per game)
     const validatedReward = Math.min(reward, 500);
 
-    // Update user balance
-    const updatedUser = await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        balance: { increment: validatedReward }
-      }
+    // Transaction
+    const result = await prisma.$transaction(async (tx) => {
+      const updatedUser = await tx.user.update({
+        where: { id: user.id },
+        data: { balance: { increment: validatedReward } }
+      });
+
+      await tx.gameSession.create({
+        data: {
+          userId: user.id,
+          gameType: 'TARGET_HIT',
+          status: 'COMPLETED',
+          score,
+          reward: validatedReward,
+          completedAt: new Date()
+        }
+      });
+
+      await tx.rewardLedger.create({
+        data: {
+          userId: user.id,
+          type: 'GAME_WIN',
+          amount: validatedReward,
+          description: `Target Hit: Score ${score}`,
+          balanceBefore: user.balance,
+          balanceAfter: updatedUser.balance
+        }
+      });
+
+      await tx.userStatistics.upsert({
+        where: { userId: user.id },
+        update: { gamesPlayed: { increment: 1 } },
+        create: { userId: user.id, gamesPlayed: 1 }
+      });
+
+      return updatedUser;
     });
 
-    // Create reward ledger record
-    await prisma.rewardLedger.create({
-      data: {
-        userId: user.id,
-        type: 'GAME_WIN',
-        amount: validatedReward,
-        description: `Target Hit reward: ${validatedReward} coins (Score: ${score})`,
-        balanceBefore: user.balance,
-        balanceAfter: user.balance + validatedReward
-      }
-    });
+    // إرسال إشعار
+    await notifyGameWin(user.id, 'Target Hit', validatedReward);
+    
+    // تحقق من الإنجازات
+    await checkSpecificAchievement(user.id, 'gamer', todayPlays + 1);
 
     return NextResponse.json({
       success: true,
-      score,
-      reward: validatedReward,
-      newBalance: updatedUser.balance,
-      playsRemaining: 10 - todayPlays - 1,
+      data: {
+        score,
+        reward: validatedReward,
+        newBalance: result.balance,
+        playsRemaining: 10 - todayPlays - 1
+      },
       message: 'تم اللعب بنجاح!'
     });
-  } catch (error: any) {
-    console.error('Error in target hit game:', error);
     
-    return NextResponse.json({
-      success: false,
-      message: error.message || 'حدث خطأ أثناء اللعب'
-    }, { status: 500 });
-  } finally {
-    if (prisma) {
-      await prisma.$disconnect();
-    }
+  } catch (error) {
+    return handleApiError(error);
   }
 }

@@ -1,24 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
+import { handleApiError, ApiException } from '@/lib/error-handler';
+import { notifyGameWin } from '@/lib/notifications';
+import { checkSpecificAchievement } from '@/lib/achievements';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 export async function POST(req: NextRequest) {
-  let prisma: PrismaClient | null = null;
-  
   try {
     const body = await req.json();
     const { userId } = body;
 
     if (!userId) {
-      return NextResponse.json({
-        success: false,
-        message: 'معرف المستخدم مطلوب'
-      }, { status: 400 });
+      throw new ApiException('User ID is required', 400, 'MISSING_USER_ID');
     }
-
-    prisma = new PrismaClient();
 
     // Find user
     const user = await prisma.user.findUnique({
@@ -32,67 +28,95 @@ export async function POST(req: NextRequest) {
       }, { status: 404 });
     }
 
-    // Check daily play limit (example: 5 plays per day)
+    // Check daily play limit (5 plays per day)
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    const todayPlays = await prisma.rewardLedger.count({
+    const todayPlays = await prisma.gameSession.count({
       where: {
         userId: user.id,
-        type: 'GAME_WIN',
-        description: { contains: 'Lucky Wheel' },
-        createdAt: { gte: today }
+        gameType: 'LUCKY_WHEEL',
+        startedAt: { gte: today }
       }
     });
 
     if (todayPlays >= 5) {
-      return NextResponse.json({
-        success: false,
-        message: 'لقد وصلت للحد الأقصى من اللعب اليوم (5 مرات)'
-      }, { status: 429 });
+      throw new ApiException('Daily play limit reached (5 plays)', 429, 'RATE_LIMIT');
     }
 
     // Generate random reward (100-10000 coins)
     const possibleRewards = [100, 200, 500, 1000, 2000, 5000, 10000];
     const reward = possibleRewards[Math.floor(Math.random() * possibleRewards.length)];
 
-    // Update user balance
-    const updatedUser = await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        balance: { increment: reward }
-      }
+    // Transaction: Update balance, create records, update stats
+    const result = await prisma.$transaction(async (tx) => {
+      // Update user balance
+      const updatedUser = await tx.user.update({
+        where: { id: user.id },
+        data: {
+          balance: { increment: reward }
+        }
+      });
+
+      // Create game session
+      await tx.gameSession.create({
+        data: {
+          userId: user.id,
+          gameType: 'LUCKY_WHEEL',
+          status: 'COMPLETED',
+          score: reward,
+          reward,
+          completedAt: new Date()
+        }
+      });
+
+      // Create reward ledger
+      await tx.rewardLedger.create({
+        data: {
+          userId: user.id,
+          type: 'GAME_WIN',
+          amount: reward,
+          description: `Lucky Wheel reward: ${reward} coins`,
+          balanceBefore: user.balance,
+          balanceAfter: updatedUser.balance
+        }
+      });
+
+      // Update statistics
+      await tx.userStatistics.upsert({
+        where: { userId: user.id },
+        update: {
+          gamesPlayed: { increment: 1 }
+        },
+        create: {
+          userId: user.id,
+          gamesPlayed: 1
+        }
+      });
+
+      return updatedUser;
     });
 
-    // Create reward ledger record
-    await prisma.rewardLedger.create({
-      data: {
-        userId: user.id,
-        type: 'GAME_WIN',
-        amount: reward,
-        description: `Lucky Wheel reward: ${reward} coins`,
-        balanceBefore: user.balance,
-        balanceAfter: user.balance + reward
-      }
-    });
+    // إرسال إشعار
+    await notifyGameWin(user.id, 'Lucky Wheel', reward);
+
+    // تحقق من إنجازات الألعاب
+    await checkSpecificAchievement(user.id, 'gamer', todayPlays + 1);
+    if (reward >= 10000) {
+      await checkSpecificAchievement(user.id, 'lucky', 1);
+    }
 
     return NextResponse.json({
       success: true,
-      reward,
-      newBalance: updatedUser.balance,
-      playsRemaining: 5 - todayPlays - 1,
+      data: {
+        reward,
+        newBalance: result.balance,
+        playsRemaining: 5 - todayPlays - 1
+      },
       message: 'تم اللعب بنجاح!'
     });
-  } catch (error: any) {
-    console.error('Error in lucky wheel game:', error);
     
-    return NextResponse.json({
-      success: false,
-      message: error.message || 'حدث خطأ أثناء اللعب'
-    }, { status: 500 });
-  } finally {
-    if (prisma) {
-      await prisma.$disconnect();
-    }
+  } catch (error) {
+    return handleApiError(error);
   }
 }

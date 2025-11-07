@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Zap, Target as TargetIcon, HelpCircle, ArrowLeft, Coins } from 'lucide-react';
@@ -12,6 +12,27 @@ function GamesContent() {
   const { user } = useAuth();
   const [spinning, setSpinning] = useState(false);
   const [result, setResult] = useState<number | null>(null);
+  const [stats, setStats] = useState({ playsToday: 0, bestReward: 0 });
+  
+  useEffect(() => {
+    if (user?.id) {
+      loadStats();
+    }
+  }, [user]);
+  
+  const loadStats = async () => {
+    try {
+      const response = await fetch(`/api/games/stats?userId=${user?.id}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setStats(data.data);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading game stats:', error);
+    }
+  };
 
   const playLuckyWheel = async () => {
     if (!user) {
@@ -185,11 +206,11 @@ function GamesContent() {
                 <div className="mt-4 pt-4 border-t border-white/10 flex justify-around text-center text-sm">
                   <div>
                     <p className="text-gray-400 mb-1">Plays Today</p>
-                    <p className="font-bold">0 / 3</p>
+                    <p className="font-bold">{stats.playsToday}</p>
                   </div>
                   <div>
                     <p className="text-gray-400 mb-1">Best Reward</p>
-                    <p className="font-bold">0</p>
+                    <p className="font-bold">{stats.bestReward.toLocaleString()}</p>
                   </div>
                 </div>
               </div>

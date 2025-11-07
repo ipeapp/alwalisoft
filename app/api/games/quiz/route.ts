@@ -1,24 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
+import { handleApiError, ApiException } from '@/lib/error-handler';
+import { notifyGameWin } from '@/lib/notifications';
+import { checkSpecificAchievement } from '@/lib/achievements';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 export async function POST(req: NextRequest) {
-  let prisma: PrismaClient | null = null;
-
   try {
     const body = await req.json();
     const { userId, score, totalQuestions, reward } = body;
 
     if (!userId || score === undefined || !totalQuestions || !reward) {
-      return NextResponse.json({
-        success: false,
-        message: 'جميع الحقول مطلوبة'
-      }, { status: 400 });
+      throw new ApiException('All fields are required', 400, 'MISSING_FIELDS');
     }
-
-    prisma = new PrismaClient();
 
     // Find user
     const user = await prisma.user.findUnique({
@@ -26,75 +22,90 @@ export async function POST(req: NextRequest) {
     });
 
     if (!user) {
-      return NextResponse.json({
-        success: false,
-        message: 'المستخدم غير موجود'
-      }, { status: 404 });
+      throw new ApiException('User not found', 404, 'USER_NOT_FOUND');
     }
 
-    // Check daily play limit (10 times per day)
+    // Check daily play limit (10 plays per day)
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    const todayPlays = await prisma.rewardLedger.count({
+    const todayPlays = await prisma.gameSession.count({
       where: {
         userId: user.id,
-        type: 'GAME_WIN',
-        description: { contains: 'Quiz Challenge' },
-        createdAt: { gte: today }
+        gameType: 'QUIZ_CHALLENGE',
+        startedAt: { gte: today }
       }
     });
 
     if (todayPlays >= 10) {
-      return NextResponse.json({
-        success: false,
-        message: 'لقد وصلت للحد الأقصى من اللعب اليوم (10 مرات)'
-      }, { status: 429 });
+      throw new ApiException('Daily play limit reached (10 plays)', 429, 'RATE_LIMIT');
     }
 
     // Validate reward (max 500 per game - 5 questions * 100)
     const validatedReward = Math.min(reward, 500);
 
-    // Update user balance
-    const updatedUser = await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        balance: { increment: validatedReward }
-      }
+    // Transaction
+    const result = await prisma.$transaction(async (tx) => {
+      const updatedUser = await tx.user.update({
+        where: { id: user.id },
+        data: { balance: { increment: validatedReward } }
+      });
+
+      await tx.gameSession.create({
+        data: {
+          userId: user.id,
+          gameType: 'QUIZ_CHALLENGE',
+          status: 'COMPLETED',
+          score,
+          reward: validatedReward,
+          gameData: { totalQuestions, correctAnswers: score },
+          completedAt: new Date()
+        }
+      });
+
+      await tx.rewardLedger.create({
+        data: {
+          userId: user.id,
+          type: 'GAME_WIN',
+          amount: validatedReward,
+          description: `Quiz Challenge: ${score}/${totalQuestions} correct`,
+          balanceBefore: user.balance,
+          balanceAfter: updatedUser.balance
+        }
+      });
+
+      await tx.userStatistics.upsert({
+        where: { userId: user.id },
+        update: { gamesPlayed: { increment: 1 } },
+        create: { userId: user.id, gamesPlayed: 1 }
+      });
+
+      return updatedUser;
     });
 
-    // Create reward ledger record
-    await prisma.rewardLedger.create({
-      data: {
-        userId: user.id,
-        type: 'GAME_WIN',
-        amount: validatedReward,
-        description: `Quiz Challenge reward: ${validatedReward} coins (Score: ${score}/${totalQuestions})`,
-        balanceBefore: user.balance,
-        balanceAfter: user.balance + validatedReward
-      }
-    });
+    // إرسال إشعار
+    await notifyGameWin(user.id, 'Quiz Challenge', validatedReward);
+    
+    // تحقق من الإنجازات
+    await checkSpecificAchievement(user.id, 'gamer', todayPlays + 1);
+    if (score === totalQuestions) {
+      await checkSpecificAchievement(user.id, 'quiz_master', 1);
+    }
 
     return NextResponse.json({
       success: true,
-      score,
-      totalQuestions,
-      reward: validatedReward,
-      newBalance: updatedUser.balance,
-      playsRemaining: 10 - todayPlays - 1,
-      percentage: ((score / totalQuestions) * 100).toFixed(0),
+      data: {
+        score,
+        totalQuestions,
+        reward: validatedReward,
+        newBalance: result.balance,
+        playsRemaining: 10 - todayPlays - 1,
+        percentage: ((score / totalQuestions) * 100).toFixed(0)
+      },
       message: 'تم اللعب بنجاح!'
     });
-  } catch (error: any) {
-    console.error('Error in quiz challenge:', error);
     
-    return NextResponse.json({
-      success: false,
-      message: error.message || 'حدث خطأ أثناء اللعب'
-    }, { status: 500 });
-  } finally {
-    if (prisma) {
-      await prisma.$disconnect();
-    }
+  } catch (error) {
+    return handleApiError(error);
   }
 }
