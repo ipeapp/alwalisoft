@@ -79,6 +79,8 @@ model UserSettings {
   userId              String              @unique @map("user_id")
   user                User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   notificationsEnabled Boolean            @default(true) @map("notifications_enabled")
+  soundEnabled        Boolean             @default(true) @map("sound_enabled")
+  darkMode            Boolean             @default(true) @map("dark_mode")
   language            String              @default("en")
   timezone            String              @default("UTC")
   createdAt           DateTime            @default(now()) @map("created_at")

@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
   ArrowLeft, User, Globe, Bell, Shield, Info,
-  ChevronRight, Moon, Sun, Volume2, VolumeX, Lock
+  ChevronRight, Moon, Sun, Volume2, VolumeX, Lock, Save
 } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
@@ -17,6 +17,65 @@ function SettingsContent() {
   const [sound, setSound] = useState(true);
   const [darkMode, setDarkMode] = useState(true);
   const [language, setLanguage] = useState('ar');
+  const [saving, setSaving] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
+  
+  useEffect(() => {
+    if (user?.id) {
+      loadSettings();
+    }
+  }, [user]);
+  
+  const loadSettings = async () => {
+    try {
+      const response = await fetch(`/api/settings?userId=${user?.id}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data) {
+          setNotifications(data.data.notificationsEnabled ?? true);
+          setSound(data.data.soundEnabled ?? true);
+          setDarkMode(data.data.darkMode ?? true);
+          setLanguage(data.data.language || 'ar');
+        }
+      }
+    } catch (error) {
+      console.error('Error loading settings:', error);
+    }
+  };
+  
+  const saveSettings = async () => {
+    if (!user?.id) return;
+    
+    setSaving(true);
+    try {
+      const response = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          notificationsEnabled: notifications,
+          soundEnabled: sound,
+          darkMode,
+          language
+        })
+      });
+      
+      if (response.ok) {
+        setHasChanges(false);
+        alert('تم حفظ الإعدادات بنجاح! ✅');
+      }
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      alert('حدث خطأ أثناء الحفظ');
+    } finally {
+      setSaving(false);
+    }
+  };
+  
+  const handleSettingChange = (setter: (value: boolean) => void, value: boolean) => {
+    setter(value);
+    setHasChanges(true);
+  };
 
   const handleLogout = () => {
     if (window.Telegram?.WebApp) {
@@ -113,7 +172,7 @@ function SettingsContent() {
             <h3 className="text-sm font-bold text-gray-400 mb-3 px-2">التطبيق</h3>
             <Card className="bg-white/5 backdrop-blur-md border-white/10 overflow-hidden">
               <button 
-                onClick={() => setNotifications(!notifications)}
+                onClick={() => handleSettingChange(setNotifications, !notifications)}
                 className="w-full p-4 flex items-center justify-between hover:bg-white/5 transition-colors"
               >
                 <div className="flex items-center gap-3">
@@ -139,7 +198,7 @@ function SettingsContent() {
               <div className="h-px bg-white/10"></div>
 
               <button 
-                onClick={() => setSound(!sound)}
+                onClick={() => handleSettingChange(setSound, !sound)}
                 className="w-full p-4 flex items-center justify-between hover:bg-white/5 transition-colors"
               >
                 <div className="flex items-center gap-3">
@@ -169,7 +228,7 @@ function SettingsContent() {
               <div className="h-px bg-white/10"></div>
 
               <button 
-                onClick={() => setDarkMode(!darkMode)}
+                onClick={() => handleSettingChange(setDarkMode, !darkMode)}
                 className="w-full p-4 flex items-center justify-between hover:bg-white/5 transition-colors"
               >
                 <div className="flex items-center gap-3">
@@ -250,6 +309,22 @@ function SettingsContent() {
               </button>
             </Card>
           </div>
+
+          {/* Save Button */}
+          {hasChanges && (
+            <Card className="bg-gradient-to-r from-green-600 to-green-700 border-green-500/50 overflow-hidden animate-pulse">
+              <button 
+                onClick={saveSettings}
+                disabled={saving}
+                className="w-full p-4 flex items-center justify-center gap-3 hover:from-green-700 hover:to-green-800 transition-colors disabled:opacity-50"
+              >
+                <Save className="w-5 h-5 text-white" />
+                <span className="font-bold text-white">
+                  {saving ? 'جارٍ الحفظ...' : 'حفظ التغييرات'}
+                </span>
+              </button>
+            </Card>
+          )}
 
           {/* Logout */}
           <Card className="bg-red-600/20 border-red-500/50 overflow-hidden">

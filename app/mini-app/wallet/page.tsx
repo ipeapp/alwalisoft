@@ -38,12 +38,25 @@ function WalletContent() {
   });
   const [loading, setLoading] = useState(true);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [withdrawForm, setWithdrawForm] = useState({
+    amount: '',
+    method: 'TON',
+    address: ''
+  });
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    loadWalletData();
-  }, []);
+    if (user) {
+      loadWalletData();
+    }
+  }, [user]);
 
   const loadWalletData = async () => {
+    if (!user?.id) {
+      setLoading(false);
+      return;
+    }
+    
     try {
       // Load withdrawals
       const withdrawalsResponse = await fetch('/api/withdrawals');
@@ -54,25 +67,18 @@ function WalletContent() {
         }
       }
 
-      // Calculate stats from API
-      const statsResponse = await fetch(`/api/users?telegramId=${user?.telegramId}`);
+      // Load wallet stats من API الحقيقي
+      const statsResponse = await fetch(`/api/wallet/stats?userId=${user.id}`);
       if (statsResponse.ok) {
         const statsData = await statsResponse.json();
-        if (statsData.success && statsData.data) {
+        if (statsData.success) {
           setStats({
-            totalEarned: statsData.data.balance || 0,
-            totalWithdrawn: 0,
-            pendingWithdrawals: withdrawals.filter((w: WithdrawalRequest) => w.status === 'PENDING').length,
-            thisWeekEarnings: 0 // يمكن حسابه من transactions لاحقاً
+            totalEarned: statsData.data.totalEarned || 0,
+            totalWithdrawn: statsData.data.totalWithdrawn || 0,
+            pendingWithdrawals: statsData.data.pendingWithdrawals || 0,
+            thisWeekEarnings: statsData.data.thisWeekEarnings || 0
           });
         }
-      } else {
-        setStats({
-          totalEarned: user?.balance || 0,
-          totalWithdrawn: 0,
-          pendingWithdrawals: 0,
-          thisWeekEarnings: 0
-        });
       }
     } catch (error) {
       console.error('Error loading wallet data:', error);
@@ -104,6 +110,65 @@ function WalletContent() {
         return 'text-red-400 bg-red-500/20';
       default:
         return 'text-gray-400 bg-gray-500/20';
+    }
+  };
+
+  const handleWithdrawSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!user?.id) return;
+    
+    const amount = parseInt(withdrawForm.amount);
+    
+    // Validation
+    if (!amount || amount < 10000) {
+      alert('الحد الأدنى للسحب 10,000 عملة');
+      return;
+    }
+    
+    if (amount > (user.balance || 0)) {
+      alert('رصيدك غير كافٍ');
+      return;
+    }
+    
+    if (!withdrawForm.address) {
+      alert('الرجاء إدخال عنوان المحفظة');
+      return;
+    }
+    
+    setSubmitting(true);
+    
+    try {
+      const response = await fetch('/api/withdrawals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          amount,
+          method: withdrawForm.method,
+          walletAddress: withdrawForm.address
+        })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          alert('تم إرسال طلب السحب بنجاح! ✅');
+          setShowWithdrawModal(false);
+          setWithdrawForm({ amount: '', method: 'TON', address: '' });
+          loadWalletData(); // Reload data
+        } else {
+          alert(data.message || 'حدث خطأ');
+        }
+      } else {
+        const errorData = await response.json();
+        alert(errorData.message || 'فشل إرسال الطلب');
+      }
+    } catch (error) {
+      console.error('Error submitting withdrawal:', error);
+      alert('حدث خطأ أثناء إرسال الطلب');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -338,6 +403,101 @@ function WalletContent() {
           </div>
         </Card>
       </div>
+
+      {/* Withdrawal Modal */}
+      {showWithdrawModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <Card className="w-full max-w-md bg-gradient-to-br from-purple-900 to-blue-900 border-purple-500/50 shadow-2xl">
+            <div className="p-6">
+              {/* Header */}
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold">💸 طلب سحب</h2>
+                <button
+                  onClick={() => setShowWithdrawModal(false)}
+                  className="text-gray-400 hover:text-white"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <form onSubmit={handleWithdrawSubmit} className="space-y-4">
+                {/* Amount */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">المبلغ (عملة)</label>
+                  <input
+                    type="number"
+                    value={withdrawForm.amount}
+                    onChange={(e) => setWithdrawForm({ ...withdrawForm, amount: e.target.value })}
+                    placeholder="10,000"
+                    min="10000"
+                    className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-purple-500"
+                    required
+                  />
+                  <p className="text-xs text-gray-400 mt-1">
+                    الحد الأدنى: 10,000 عملة (~0.01 USDT)
+                  </p>
+                </div>
+
+                {/* Method */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">طريقة السحب</label>
+                  <select
+                    value={withdrawForm.method}
+                    onChange={(e) => setWithdrawForm({ ...withdrawForm, method: e.target.value })}
+                    className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500"
+                  >
+                    <option value="TON">TON Wallet</option>
+                    <option value="USDT_TRC20">USDT (TRC20)</option>
+                    <option value="USDT_ERC20">USDT (ERC20)</option>
+                    <option value="BTC">Bitcoin</option>
+                  </select>
+                </div>
+
+                {/* Wallet Address */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">عنوان المحفظة</label>
+                  <input
+                    type="text"
+                    value={withdrawForm.address}
+                    onChange={(e) => setWithdrawForm({ ...withdrawForm, address: e.target.value })}
+                    placeholder="UQxxxxxxxxxxxxxx..."
+                    className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-purple-500"
+                    required
+                  />
+                  <p className="text-xs text-gray-400 mt-1">
+                    تأكد من صحة العنوان - لا يمكن التراجع عن المعاملة!
+                  </p>
+                </div>
+
+                {/* Info */}
+                <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-lg p-3">
+                  <p className="text-xs text-yellow-200">
+                    ⚠️ ستتم مراجعة طلبك خلال 24-48 ساعة. سيتم إرسال إشعار عند الموافقة.
+                  </p>
+                </div>
+
+                {/* Buttons */}
+                <div className="flex gap-3 mt-6">
+                  <Button
+                    type="button"
+                    onClick={() => setShowWithdrawModal(false)}
+                    className="flex-1 bg-white/10 hover:bg-white/20 border-0"
+                  >
+                    إلغاء
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={submitting}
+                    className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 border-0"
+                  >
+                    {submitting ? 'جارٍ الإرسال...' : 'إرسال الطلب'}
+                  </Button>
+                </div>
+              </form>
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
