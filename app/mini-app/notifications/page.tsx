@@ -31,54 +31,27 @@ function NotificationsContent() {
 
   const loadNotifications = async () => {
     try {
-      // Simulated notifications - في الإنتاج، يتم جلبها من الـ API
-      const mockNotifications: Notification[] = [
-        {
-          id: '1',
-          type: 'REWARD',
-          title: 'مكافأة يومية جديدة! 🎁',
-          message: 'لا تنسَ الحصول على مكافأتك اليومية! +500 عملة في انتظارك.',
-          isRead: false,
-          createdAt: new Date().toISOString(),
-          actionUrl: '/mini-app/rewards'
-        },
-        {
-          id: '2',
-          type: 'ACHIEVEMENT',
-          title: 'إنجاز محقق! 🏆',
-          message: 'تهانينا! لقد حققت إنجاز "مبتدئ" وحصلت على 100 عملة.',
-          isRead: false,
-          createdAt: new Date(Date.now() - 3600000).toISOString()
-        },
-        {
-          id: '3',
-          type: 'REFERRAL',
-          title: 'صديق جديد انضم! 👥',
-          message: 'انضم صديقك أحمد باستخدام رابطك. حصلت على 500 عملة!',
-          isRead: true,
-          createdAt: new Date(Date.now() - 7200000).toISOString()
-        },
-        {
-          id: '4',
-          type: 'TASK',
-          title: 'مهمة جديدة متاحة! ✅',
-          message: 'مهمة جديدة أضيفت: "تابعنا على تويتر". مكافأة: 300 عملة.',
-          isRead: true,
-          createdAt: new Date(Date.now() - 86400000).toISOString(),
-          actionUrl: '/mini-app/tasks'
-        },
-        {
-          id: '5',
-          type: 'GAME',
-          title: 'لعبة جديدة! 🎮',
-          message: 'لعبة Quiz Challenge الآن متاحة! جرب حظك واربح حتى 200 عملة.',
-          isRead: true,
-          createdAt: new Date(Date.now() - 172800000).toISOString(),
-          actionUrl: '/mini-app/games'
+      // جلب من API الحقيقي
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      if (!user.id) {
+        setLoading(false);
+        return;
+      }
+      
+      const response = await fetch(`/api/notifications?userId=${user.id}&limit=50`, {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
         }
-      ];
-
-      setNotifications(mockNotifications);
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setNotifications(data.data.notifications || []);
+        }
+      } else {
+        console.error('Failed to load notifications:', response.status);
+      }
     } catch (error) {
       console.error('Error loading notifications:', error);
     } finally {
@@ -86,24 +59,74 @@ function NotificationsContent() {
     }
   };
 
-  const markAsRead = (id: string) => {
-    setNotifications(prev =>
-      prev.map(n => n.id === id ? { ...n, isRead: true } : n)
-    );
+  const markAsRead = async (id: string) => {
+    try {
+      const response = await fetch(`/api/notifications/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isRead: true })
+      });
+      
+      if (response.ok) {
+        setNotifications(prev =>
+          prev.map(n => n.id === id ? { ...n, isRead: true, readAt: new Date().toISOString() } : n)
+        );
+      }
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
   };
 
-  const markAllAsRead = () => {
-    setNotifications(prev =>
-      prev.map(n => ({ ...n, isRead: true }))
-    );
+  const markAllAsRead = async () => {
+    try {
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      if (!user.id) return;
+      
+      const response = await fetch('/api/notifications/mark-all-read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id })
+      });
+      
+      if (response.ok) {
+        setNotifications(prev =>
+          prev.map(n => ({ ...n, isRead: true, readAt: new Date().toISOString() }))
+        );
+      }
+    } catch (error) {
+      console.error('Error marking all as read:', error);
+    }
   };
 
-  const deleteNotification = (id: string) => {
-    setNotifications(prev => prev.filter(n => n.id !== id));
+  const deleteNotification = async (id: string) => {
+    try {
+      const response = await fetch(`/api/notifications/${id}`, {
+        method: 'DELETE'
+      });
+      
+      if (response.ok) {
+        setNotifications(prev => prev.filter(n => n.id !== id));
+      }
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+    }
   };
 
-  const deleteAllRead = () => {
-    setNotifications(prev => prev.filter(n => !n.isRead));
+  const deleteAllRead = async () => {
+    try {
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      if (!user.id) return;
+      
+      const response = await fetch(`/api/notifications?userId=${user.id}&readOnly=true`, {
+        method: 'DELETE'
+      });
+      
+      if (response.ok) {
+        setNotifications(prev => prev.filter(n => !n.isRead));
+      }
+    } catch (error) {
+      console.error('Error deleting read notifications:', error);
+    }
   };
 
   const getNotificationIcon = (type: string) => {

@@ -64,6 +64,7 @@ model User {
   auditLogs           AuditLog[]
   userSettings        UserSettings?
   dailyBonuses        DailyBonus[]
+  userAchievements    UserAchievement[]
   
   @@index([telegramId])
   @@index([referralCode])
@@ -494,6 +495,58 @@ model DailyBonus {
   @@unique([userId, day, createdAt])
   @@index([userId])
   @@map("daily_bonuses")
+}
+
+// ============================================================================
+// ACHIEVEMENTS
+// ============================================================================
+
+enum AchievementCategory {
+  TASKS
+  BALANCE
+  REFERRALS
+  ACTIVITY
+  GAMES
+  SOCIAL
+}
+
+model Achievement {
+  id                  String              @id @default(uuid())
+  key                 String              @unique // first_steps, task_master_10, etc.
+  icon                String
+  name                String
+  description         String              
+  reward              Int
+  target              Int
+  category            AchievementCategory
+  isActive            Boolean             @default(true) @map("is_active")
+  priority            Int                 @default(0)
+  createdAt           DateTime            @default(now()) @map("created_at")
+  updatedAt           DateTime            @updatedAt @map("updated_at")
+  
+  // Relations
+  userAchievements    UserAchievement[]
+  
+  @@index([category, isActive])
+  @@map("achievements")
+}
+
+model UserAchievement {
+  id                  String              @id @default(uuid())
+  userId              String              @map("user_id")
+  user                User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievementId       String              @map("achievement_id")
+  achievement         Achievement         @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+  progress            Int                 @default(0)
+  isUnlocked          Boolean             @default(false) @map("is_unlocked")
+  unlockedAt          DateTime?           @map("unlocked_at")
+  rewardClaimed       Boolean             @default(false) @map("reward_claimed")
+  createdAt           DateTime            @default(now()) @map("created_at")
+  updatedAt           DateTime            @updatedAt @map("updated_at")
+  
+  @@unique([userId, achievementId])
+  @@index([userId, isUnlocked])
+  @@map("user_achievements")
 }
 
 // ============================================================================
