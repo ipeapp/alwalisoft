@@ -178,6 +178,11 @@ async function main() {
   // START BOT
   // ========================================================================
 
+  // Store bot and services globally for graceful shutdown
+  (global as any).bot = bot;
+  (global as any).prisma = prisma;
+  (global as any).redis = redis;
+
   await bot.launch();
   logger.info('Bot started successfully!');
   logger.info(`Bot username: @${bot.botInfo?.username}`);
@@ -212,6 +217,49 @@ function getMainKeyboard(ctx: BotContext) {
     ],
   ]);
 }
+
+// Graceful shutdown
+async function gracefulShutdown(signal: string) {
+  logger.info(`Received ${signal}, shutting down gracefully...`);
+  
+  try {
+    const bot = (global as any).bot;
+    if (bot) {
+      await bot.stop(signal);
+    }
+    
+    const prisma = (global as any).prisma;
+    if (prisma) {
+      await prisma.$disconnect();
+    }
+    
+    const redis = (global as any).redis;
+    if (redis) {
+      await redis.quit();
+    }
+    
+    logger.info('Shutdown complete');
+    process.exit(0);
+  } catch (error) {
+    logger.error({ err: error }, 'Error during shutdown:');
+    process.exit(1);
+  }
+}
+
+// Handle shutdown signals
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+
+// Handle uncaught errors
+process.on('uncaughtException', (error) => {
+  logger.error({ err: error }, 'Uncaught Exception:');
+  // Don't exit immediately, log and continue
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  logger.error({ reason, promise }, 'Unhandled Rejection:');
+  // Don't exit immediately, log and continue
+});
 
 // Start the bot
 main().catch((error) => {
