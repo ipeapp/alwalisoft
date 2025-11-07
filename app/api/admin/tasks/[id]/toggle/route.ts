@@ -1,45 +1,46 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 import { handleApiError } from '@/lib/error-handler';
 
 export const dynamic = 'force-dynamic';
-export const runtime = 'nodejs';
 
+/**
+ * PATCH /api/admin/tasks/[id]/toggle
+ * تفعيل/تعطيل مهمة
+ */
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
-  let prisma: PrismaClient | null = null;
-
   try {
-    const { id } = await params;
-    const body = await req.json();
-    const { isActive } = body;
-
-    if (isActive === undefined) {
+    const { id } = params;
+    
+    // Get current status
+    const task = await prisma.task.findUnique({
+      where: { id },
+      select: { isActive: true }
+    });
+    
+    if (!task) {
       return NextResponse.json({
         success: false,
-        message: 'isActive is required'
-      }, { status: 400 });
+        message: 'Task not found'
+      }, { status: 404 });
     }
-
-    prisma = new PrismaClient();
-
-    const task = await prisma.task.update({
+    
+    // Toggle status
+    const updatedTask = await prisma.task.update({
       where: { id },
-      data: { isActive }
+      data: { isActive: !task.isActive }
     });
-
+    
     return NextResponse.json({
       success: true,
-      data: task,
-      message: `تم ${isActive ? 'تفعيل' : 'إيقاف'} المهمة بنجاح`
+      data: updatedTask,
+      message: `Task ${updatedTask.isActive ? 'activated' : 'deactivated'} successfully`
     });
-  } catch (error: any) {
+    
+  } catch (error) {
     return handleApiError(error);
-  } finally {
-    if (prisma) {
-      await prisma.$disconnect();
-    }
   }
 }
