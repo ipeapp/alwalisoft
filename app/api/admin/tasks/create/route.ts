@@ -20,13 +20,26 @@ export async function POST(req: NextRequest) {
         name: body.name,
         description: body.description,
         reward: Number(body.reward),
+        bonusReward: Number(body.bonusReward || 0),
         difficulty: body.difficulty,
         category: body.category,
         type: body.type,
         requirement: body.requirement || null,
+        verificationData: body.verificationData || null,
+        channelId: body.channelId || null,
+        channelUsername: body.channelUsername || null,
+        groupId: body.groupId || null,
+        videoUrl: body.videoUrl || null,
+        postUrl: body.postUrl || null,
         isActive: body.isActive !== false,
-        minLevel: body.minLevel || 1,
-        maxCompletions: body.maxCompletions || null
+        isBonus: body.isBonus || false,
+        isFeatured: body.isFeatured || false,
+        minLevel: body.minLevel || 'BEGINNER',
+        maxCompletions: body.maxCompletions || null,
+        cooldownMinutes: body.cooldownMinutes || null,
+        priority: Number(body.priority || 0),
+        startsAt: body.startsAt ? new Date(body.startsAt) : null,
+        expiresAt: body.expiresAt ? new Date(body.expiresAt) : null
       }
     });
 

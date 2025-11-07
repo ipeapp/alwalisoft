@@ -13,8 +13,8 @@ export default function CreateTaskPage() {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    category: 'DAILY',
-    type: 'DAILY_CHECK_IN',
+    category: 'DAILY_LOGIN',
+    type: 'DAILY',
     difficulty: 'EASY',
     reward: 100,
     bonusReward: 0,
@@ -50,7 +50,7 @@ export default function CreateTaskPage() {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/tasks', {
+      const response = await fetch('/api/admin/tasks/create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -137,12 +137,15 @@ export default function CreateTaskPage() {
                       required
                       className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:border-purple-500"
                     >
-                      <option value="DAILY">يومية</option>
-                      <option value="SOCIAL_MEDIA">وسائل التواصل</option>
-                      <option value="REFERRAL">إحالة</option>
-                      <option value="PROFILE">الملف الشخصي</option>
-                      <option value="ACHIEVEMENT">إنجاز</option>
-                      <option value="GAME">لعبة</option>
+                      <option value="DAILY_LOGIN">تسجيل دخول يومي</option>
+                      <option value="CHANNEL_SUBSCRIPTION">الاشتراك في قناة</option>
+                      <option value="GROUP_JOIN">الانضمام لمجموعة</option>
+                      <option value="VIDEO_WATCH">مشاهدة فيديو</option>
+                      <option value="POST_INTERACTION">التفاعل مع منشور</option>
+                      <option value="CONTENT_SHARE">مشاركة محتوى</option>
+                      <option value="REFERRAL_BONUS">مكافأة إحالة</option>
+                      <option value="SPECIAL_EVENT">حدث خاص</option>
+                      <option value="SURVEY">استطلاع رأي</option>
                     </select>
                   </div>
 
@@ -155,15 +158,11 @@ export default function CreateTaskPage() {
                       required
                       className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:border-purple-500"
                     >
-                      <option value="DAILY_CHECK_IN">تسجيل دخول يومي</option>
-                      <option value="TELEGRAM_JOIN">انضمام لتليجرام</option>
-                      <option value="SOCIAL_SHARE">مشاركة اجتماعية</option>
-                      <option value="REFERRAL">إحالة</option>
-                      <option value="GAME_PLAY">لعب لعبة</option>
-                      <option value="PROFILE_COMPLETE">إكمال الملف</option>
-                      <option value="ACHIEVEMENT">إنجاز</option>
-                      <option value="VIDEO_WATCH">مشاهدة فيديو</option>
-                      <option value="POST_LIKE">إعجاب بمنشور</option>
+                      <option value="DAILY">يومية</option>
+                      <option value="WEEKLY">أسبوعية</option>
+                      <option value="SPECIAL">خاصة</option>
+                      <option value="BONUS">مكافأة</option>
+                      <option value="ONE_TIME">لمرة واحدة</option>
                     </select>
                   </div>
                 </div>
@@ -181,6 +180,7 @@ export default function CreateTaskPage() {
                       <option value="EASY">سهل</option>
                       <option value="MEDIUM">متوسط</option>
                       <option value="HARD">صعب</option>
+                      <option value="EXPERT">خبير</option>
                     </select>
                   </div>
 
