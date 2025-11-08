@@ -6,13 +6,13 @@ export const runtime = 'nodejs';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   let prisma: PrismaClient | null = null;
 
   try {
     prisma = new PrismaClient();
-    const { id: taskId } = await params;
+    const { id: taskId } = params;
 
     const task = await prisma.task.findUnique({
       where: { id: taskId }
@@ -48,13 +48,13 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   let prisma: PrismaClient | null = null;
 
   try {
     prisma = new PrismaClient();
-    const { id: taskId } = await params;
+    const { id: taskId } = params;
     const body = await request.json();
 
     const {
@@ -134,13 +134,13 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   let prisma: PrismaClient | null = null;
 
   try {
     prisma = new PrismaClient();
-    const { id: taskId } = await params;
+    const { id: taskId } = params;
 
     await prisma.task.delete({
       where: { id: taskId }

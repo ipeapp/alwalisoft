@@ -8,7 +8,7 @@ import { handleApiError, ApiException } from '@/lib/error-handler';
  */
 export async function PATCH(
   req: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  context: { params: { id: string } }
 ) {
   try {
     const { id } = await context.params;
@@ -49,7 +49,7 @@ export async function PATCH(
  */
 export async function DELETE(
   req: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  context: { params: { id: string } }
 ) {
   try {
     const { id } = await context.params;

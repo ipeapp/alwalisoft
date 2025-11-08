@@ -9,7 +9,7 @@ import { notifyAchievementUnlocked } from '@/lib/notifications';
  */
 export async function POST(
   req: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  context: { params: { id: string } }
 ) {
   try {
     const { id: achievementId } = await context.params;

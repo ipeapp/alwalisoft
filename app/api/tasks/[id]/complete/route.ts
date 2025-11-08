@@ -5,7 +5,7 @@ export const runtime = 'nodejs';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   let prisma: any = null;
   
@@ -17,7 +17,7 @@ export async function POST(
     console.log('📥 Task completion request body:', body);
     
     const { userId, verified = false } = body;
-    const { id: taskId } = await params;
+    const { id: taskId } = params;
     
     console.log('🎯 Task ID:', taskId);
     console.log('👤 User ID:', userId);
