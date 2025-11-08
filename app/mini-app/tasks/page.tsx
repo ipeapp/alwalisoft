@@ -20,6 +20,11 @@ interface Task {
   category: string;
   type: string;
   actionUrl?: string;
+  postUrl?: string;
+  videoUrl?: string;
+  channelUsername?: string;
+  groupId?: string;
+  verificationData?: any;
   isCompleted?: boolean;
 }
 
@@ -78,24 +83,54 @@ function TasksContent() {
       return;
     }
     
+    // تحديد الرابط المناسب (postUrl أو videoUrl أو actionUrl)
+    const linkToOpen = task.postUrl || task.videoUrl || task.actionUrl;
+    
     // فتح الرابط إذا كان موجود
-    if (task.actionUrl) {
+    if (linkToOpen) {
+      console.log('🔗 Opening link:', linkToOpen);
       if (typeof window !== 'undefined') {
-        window.open(task.actionUrl, '_blank');
+        window.open(linkToOpen, '_blank');
       }
+    } else {
+      console.log('ℹ️ No link to open for this task');
     }
     
-    // عرض modal للتحقق إذا كانت المهمة تتطلب تحقق
-    if (['TWITTER_FOLLOW', 'TELEGRAM_JOIN', 'YOUTUBE_SUBSCRIBE'].includes(task.type)) {
-      // إعطاء وقت للمستخدم لفتح الرابط
+    // تحديد نوع المهمة بناءً على category
+    const needsVerification = [
+      'CHANNEL_SUBSCRIPTION', 
+      'GROUP_JOIN', 
+      'SOCIAL_FOLLOW',
+      'VIDEO_WATCH',
+      'POST_INTERACTION'
+    ].includes(task.category);
+    
+    if (needsVerification && linkToOpen) {
+      // إعطاء وقت للمستخدم لفتح الرابط وإكمال المهمة
       setTimeout(() => {
-        setVerifyingTask(task);
-      }, 500);
+        const confirmMsg = 'هل أكملت المهمة؟\n\n' + 
+          (task.channelUsername ? `قناة: @${task.channelUsername}\n` : '') +
+          'اضغط OK للحصول على المكافأة';
+        
+        if (typeof window !== 'undefined') {
+          if (window.Telegram?.WebApp) {
+            window.Telegram.WebApp.showConfirm(confirmMsg, (confirmed) => {
+              if (confirmed) {
+                completeTaskDirect(task.id);
+              }
+            });
+          } else {
+            if (confirm(confirmMsg)) {
+              completeTaskDirect(task.id);
+            }
+          }
+        }
+      }, 2000);
     } else {
-      // إكمال مباشر للمهام البسيطة
+      // إكمال مباشر للمهام البسيطة (مثل تسجيل الدخول)
       setTimeout(() => {
         completeTaskDirect(task.id);
-      }, 1000);
+      }, 500);
     }
   };
   
