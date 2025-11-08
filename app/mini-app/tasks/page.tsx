@@ -67,22 +67,45 @@ function TasksContent() {
   };
 
   const startTask = (task: Task) => {
+    console.log('🎯 Starting task:', task);
+    
+    if (!user) {
+      if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
+        window.Telegram.WebApp.showAlert('⚠️ الرجاء تسجيل الدخول أولاً');
+      } else {
+        alert('⚠️ الرجاء تسجيل الدخول أولاً');
+      }
+      return;
+    }
+    
     // فتح الرابط إذا كان موجود
     if (task.actionUrl) {
-      window.open(task.actionUrl, '_blank');
+      if (typeof window !== 'undefined') {
+        window.open(task.actionUrl, '_blank');
+      }
     }
     
     // عرض modal للتحقق إذا كانت المهمة تتطلب تحقق
     if (['TWITTER_FOLLOW', 'TELEGRAM_JOIN', 'YOUTUBE_SUBSCRIBE'].includes(task.type)) {
-      setVerifyingTask(task);
+      // إعطاء وقت للمستخدم لفتح الرابط
+      setTimeout(() => {
+        setVerifyingTask(task);
+      }, 500);
     } else {
       // إكمال مباشر للمهام البسيطة
-      completeTaskDirect(task.id);
+      setTimeout(() => {
+        completeTaskDirect(task.id);
+      }, 1000);
     }
   };
   
   const completeTaskDirect = async (taskId: string) => {
-    if (!user) return;
+    if (!user) {
+      console.error('❌ No user found');
+      return;
+    }
+    
+    console.log('✅ Completing task:', taskId, 'for user:', user.id);
     
     try {
       const response = await fetch(`/api/tasks/${taskId}/complete`, {
@@ -95,19 +118,40 @@ function TasksContent() {
       });
       
       const data = await response.json();
+      console.log('📦 Complete task response:', data);
       
       if (response.ok && data.success) {
-        if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
-          window.Telegram.WebApp.showAlert(`✅ تم إكمال المهمة!\n🪙 ربحت ${data.data.rewardAmount} عملة`);
+        const message = `✅ تم إكمال المهمة!\n🪙 ربحت ${data.data?.rewardAmount || data.data?.reward || 0} عملة`;
+        if (typeof window !== 'undefined') {
+          if (window.Telegram?.WebApp) {
+            window.Telegram.WebApp.showAlert(message);
+          } else {
+            alert(message);
+          }
         }
-        loadTasks();
+        // إعادة تحميل المهام بعد النجاح
+        setTimeout(() => loadTasks(), 500);
       } else {
-        if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
-          window.Telegram.WebApp.showAlert(`❌ ${data.error || 'فشل إكمال المهمة'}`);
+        const errorMsg = `❌ ${data.error || data.message || 'فشل إكمال المهمة'}`;
+        console.error('❌ Task completion failed:', data);
+        if (typeof window !== 'undefined') {
+          if (window.Telegram?.WebApp) {
+            window.Telegram.WebApp.showAlert(errorMsg);
+          } else {
+            alert(errorMsg);
+          }
         }
       }
     } catch (error) {
-      console.error('Error completing task:', error);
+      console.error('❌ Error completing task:', error);
+      const errorMsg = '❌ حدث خطأ أثناء إكمال المهمة';
+      if (typeof window !== 'undefined') {
+        if (window.Telegram?.WebApp) {
+          window.Telegram.WebApp.showAlert(errorMsg);
+        } else {
+          alert(errorMsg);
+        }
+      }
     }
   };
   
@@ -244,10 +288,18 @@ function TasksContent() {
                       <span className="text-sm text-gray-400">نقطة</span>
                     </div>
 
-                    {!task.isCompleted && (
+                    {task.isCompleted ? (
+                      <div className="flex items-center gap-2 text-green-400">
+                        <CheckCircle className="w-5 h-5" />
+                        <span className="font-bold">مكتملة</span>
+                      </div>
+                    ) : (
                       <Button
-                        onClick={() => startTask(task)}
-                        className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                        onClick={() => {
+                          console.log('🖱️ Button clicked for task:', task.id);
+                          startTask(task);
+                        }}
+                        className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 active:scale-95 transition-transform"
                       >
                         <Clock className="w-4 h-4 mr-2" />
                         ابدأ المهمة

@@ -55,24 +55,30 @@ function ReferralsContent() {
   };
 
   const copyReferralLink = () => {
-    const botUsername = process.env.NEXT_PUBLIC_BOT_USERNAME || 'your_bot';
+    const botUsername = 'makeittooeasy_bot';
     const referralLink = `https://t.me/${botUsername}?start=${authUser?.referralCode || 'ref_code'}`;
     
     if (typeof window !== 'undefined') {
       navigator.clipboard.writeText(referralLink);
       if (window.Telegram?.WebApp) {
         window.Telegram.WebApp.showAlert('تم نسخ الرابط! 📋');
+      } else {
+        alert('تم نسخ الرابط! 📋');
       }
     }
   };
 
   const shareReferralLink = () => {
-    const botUsername = process.env.NEXT_PUBLIC_BOT_USERNAME || 'your_bot';
+    const botUsername = 'makeittooeasy_bot';
     const referralLink = `https://t.me/${botUsername}?start=${authUser?.referralCode || 'ref_code'}`;
     const shareText = `🎁 انضم إلينا واربح المكافآت!\n\n💰 احصل على نقاط إضافية باستخدام رابط الدعوة!\n\n${referralLink}`;
     
-    if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
-      window.Telegram.WebApp.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(shareText)}`);
+    if (typeof window !== 'undefined') {
+      if (window.Telegram?.WebApp) {
+        window.Telegram.WebApp.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(shareText)}`);
+      } else {
+        window.open(`https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(shareText)}`, '_blank');
+      }
     }
   };
 
@@ -100,7 +106,7 @@ function ReferralsContent() {
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <p className="text-blue-200 text-sm mb-1">Total Earnings</p>
+                <p className="text-blue-200 text-sm mb-1">إجمالي الأرباح</p>
                 <div className="flex items-center gap-2">
                   <Coins className="w-8 h-8 text-yellow-400" />
                   <h2 className="text-3xl font-bold">{stats.totalEarnings.toLocaleString()}</h2>
@@ -129,9 +135,9 @@ function ReferralsContent() {
         {/* Referral Link */}
         <Card className="bg-white/5 backdrop-blur-md border-white/10 mb-6">
           <div className="p-5">
-            <h3 className="font-bold text-lg mb-3">Your Referral Link</h3>
+            <h3 className="font-bold text-lg mb-3">رابط الإحالة الخاص بك</h3>
             <div className="bg-black/30 rounded-lg p-3 mb-3 font-mono text-sm break-all">
-              {authUser?.referralCode ? `t.me/your_bot?start=${authUser.referralCode}` : 'Loading...'}
+              {authUser?.referralCode ? `t.me/makeittooeasy_bot?start=${authUser.referralCode}` : 'جاري التحميل...'}
             </div>
             <div className="grid grid-cols-2 gap-3">
               <Button
@@ -139,14 +145,14 @@ function ReferralsContent() {
                 className="bg-blue-600 hover:bg-blue-700"
               >
                 <Copy className="w-4 h-4 mr-2" />
-                Copy Link
+                نسخ الرابط
               </Button>
               <Button
                 onClick={shareReferralLink}
                 className="bg-green-600 hover:bg-green-700"
               >
                 <Share2 className="w-4 h-4 mr-2" />
-                Share
+                مشاركة
               </Button>
             </div>
           </div>
@@ -155,7 +161,7 @@ function ReferralsContent() {
         {/* Rewards Info */}
         <Card className="bg-white/5 backdrop-blur-md border-white/10 mb-6">
           <div className="p-5">
-            <h3 className="font-bold text-lg mb-4">Referral Rewards</h3>
+            <h3 className="font-bold text-lg mb-4">مكافآت الإحالة</h3>
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -163,13 +169,13 @@ function ReferralsContent() {
                     <span className="font-bold text-blue-400">1</span>
                   </div>
                   <div>
-                    <p className="font-medium">Level 1 Referral</p>
-                    <p className="text-xs text-gray-400">Direct invite</p>
+                    <p className="font-medium">إحالة المستوى 1</p>
+                    <p className="text-xs text-gray-400">دعوة مباشرة</p>
                   </div>
                 </div>
                 <div className="text-right">
                   <p className="font-bold text-yellow-400">5,000</p>
-                  <p className="text-xs text-gray-400">coins</p>
+                  <p className="text-xs text-gray-400">عملة</p>
                 </div>
               </div>
 
@@ -179,13 +185,13 @@ function ReferralsContent() {
                     <span className="font-bold text-purple-400">2</span>
                   </div>
                   <div>
-                    <p className="font-medium">Level 2 Referral</p>
-                    <p className="text-xs text-gray-400">Friend of friend</p>
+                    <p className="font-medium">إحالة المستوى 2</p>
+                    <p className="text-xs text-gray-400">صديق الصديق</p>
                   </div>
                 </div>
                 <div className="text-right">
                   <p className="font-bold text-yellow-400">10%</p>
-                  <p className="text-xs text-gray-400">commission</p>
+                  <p className="text-xs text-gray-400">عمولة</p>
                 </div>
               </div>
 
@@ -195,13 +201,13 @@ function ReferralsContent() {
                     <span className="font-bold text-pink-400">3</span>
                   </div>
                   <div>
-                    <p className="font-medium">Level 3 Referral</p>
-                    <p className="text-xs text-gray-400">Extended network</p>
+                    <p className="font-medium">إحالة المستوى 3</p>
+                    <p className="text-xs text-gray-400">الشبكة الممتدة</p>
                   </div>
                 </div>
                 <div className="text-right">
                   <p className="font-bold text-yellow-400">5%</p>
-                  <p className="text-xs text-gray-400">commission</p>
+                  <p className="text-xs text-gray-400">عمولة</p>
                 </div>
               </div>
             </div>
@@ -210,13 +216,13 @@ function ReferralsContent() {
 
         {/* Recent Referrals */}
         <div>
-          <h3 className="text-lg font-semibold mb-4">Recent Referrals</h3>
+          <h3 className="text-lg font-semibold mb-4">الإحالات الأخيرة</h3>
           {referrals.length === 0 ? (
             <Card className="bg-white/5 backdrop-blur-md border-white/10">
               <div className="p-8 text-center">
                 <Users className="w-12 h-12 mx-auto mb-3 text-gray-600" />
-                <p className="text-gray-400">No referrals yet</p>
-                <p className="text-sm text-gray-500 mt-1">Start inviting friends to earn rewards!</p>
+                <p className="text-gray-400">لا توجد إحالات بعد</p>
+                <p className="text-sm text-gray-500 mt-1">ابدأ بدعوة الأصدقاء لكسب المكافآت!</p>
               </div>
             </Card>
           ) : (
@@ -229,13 +235,13 @@ function ReferralsContent() {
                         <Users className="w-5 h-5" />
                       </div>
                       <div>
-                        <p className="font-medium">{referral.referred?.username || 'User'}</p>
-                        <p className="text-xs text-gray-400">Level {referral.level}</p>
+                        <p className="font-medium">{referral.referred?.username || 'مستخدم'}</p>
+                        <p className="text-xs text-gray-400">المستوى {referral.level}</p>
                       </div>
                     </div>
                     <div className="text-right">
                       <p className="font-bold text-green-400">+{referral.commission?.toLocaleString()}</p>
-                      <p className="text-xs text-gray-400">earned</p>
+                      <p className="text-xs text-gray-400">مكتسبة</p>
                     </div>
                   </div>
                 </Card>
