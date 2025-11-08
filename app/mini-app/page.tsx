@@ -118,17 +118,17 @@ export default function MiniAppPage() {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-black flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-purple-500 mx-auto mb-4"></div>
-          <p className="text-white text-lg">جارٍ التحميل...</p>
+          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-white text-lg font-bold">جارٍ التحميل...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-black text-white overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white overflow-hidden">
       {/* Header */}
       <div className="relative px-6 pt-8 pb-6">
         <div className="flex items-center justify-between mb-6">
@@ -162,14 +162,14 @@ export default function MiniAppPage() {
         </div>
 
         {/* Balance Card */}
-        <Card className="bg-gradient-to-r from-purple-600 to-blue-600 border-0 shadow-2xl">
+        <Card className="bg-gradient-to-r from-blue-600 to-purple-600 border-0 shadow-2xl hover:shadow-3xl transition-shadow">
           <div className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-purple-200 text-sm mb-1">إجمالي الرصيد</p>
+                <p className="text-blue-100 text-sm mb-1 font-semibold">إجمالي الرصيد</p>
                 <div className="flex items-center gap-2">
-                  <Coins className="w-8 h-8 text-yellow-400" />
-                  <h2 className="text-4xl font-bold">
+                  <Coins className="w-8 h-8 text-yellow-300 drop-shadow-lg" />
+                  <h2 className="text-4xl font-bold text-white drop-shadow-lg">
                     {stats.balance.toLocaleString()}
                   </h2>
                 </div>
@@ -177,14 +177,14 @@ export default function MiniAppPage() {
               <Wallet className="w-16 h-16 text-white/20" />
             </div>
             
-            <div className="grid grid-cols-2 gap-4 mt-6 pt-6 border-t border-white/20">
+            <div className="grid grid-cols-2 gap-4 mt-6 pt-6 border-t border-white/30">
               <div>
-                <p className="text-purple-200 text-xs mb-1">المهام المنجزة</p>
-                <p className="text-xl font-bold">{stats.tasksCompleted}</p>
+                <p className="text-blue-100 text-xs mb-1 font-semibold">المهام المنجزة</p>
+                <p className="text-2xl font-bold text-white">{stats.tasksCompleted}</p>
               </div>
               <div>
-                <p className="text-purple-200 text-xs mb-1">الإحالات</p>
-                <p className="text-xl font-bold">{stats.referrals}</p>
+                <p className="text-blue-100 text-xs mb-1 font-semibold">الإحالات</p>
+                <p className="text-2xl font-bold text-white">{stats.referrals}</p>
               </div>
             </div>
           </div>
@@ -193,44 +193,44 @@ export default function MiniAppPage() {
 
       {/* Quick Actions */}
       <div className="px-6 py-4">
-        <h3 className="text-lg font-semibold mb-4">الإجراءات السريعة</h3>
+        <h3 className="text-xl font-bold mb-4 text-white">الإجراءات السريعة</h3>
         <div className="grid grid-cols-2 gap-4">
           <Link href="/mini-app/tasks" className="block">
-            <Button className="h-auto py-6 bg-gradient-to-br from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 border-0 shadow-lg w-full">
+            <Button className="h-auto py-6 bg-gradient-to-br from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 border-0 shadow-xl hover:shadow-2xl transition-all w-full">
               <div className="text-center w-full">
-                <Target className="w-8 h-8 mx-auto mb-2" />
-                <p className="font-bold">اربح</p>
-                <p className="text-xs opacity-80">أكمل المهام</p>
+                <Target className="w-8 h-8 mx-auto mb-2 drop-shadow-lg" />
+                <p className="font-bold text-base">اربح</p>
+                <p className="text-xs font-medium opacity-90">أكمل المهام</p>
               </div>
             </Button>
           </Link>
 
           <Link href="/mini-app/games" className="block">
-            <Button className="h-auto py-6 bg-gradient-to-br from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 border-0 shadow-lg w-full">
+            <Button className="h-auto py-6 bg-gradient-to-br from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 border-0 shadow-xl hover:shadow-2xl transition-all w-full">
               <div className="text-center w-full">
-                <Zap className="w-8 h-8 mx-auto mb-2" />
-                <p className="font-bold">العب</p>
-                <p className="text-xs opacity-80">ألعاب صغيرة</p>
+                <Zap className="w-8 h-8 mx-auto mb-2 drop-shadow-lg" />
+                <p className="font-bold text-base">العب</p>
+                <p className="text-xs font-medium opacity-90">ألعاب صغيرة</p>
               </div>
             </Button>
           </Link>
 
           <Link href="/mini-app/referrals" className="block">
-            <Button className="h-auto py-6 bg-gradient-to-br from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 border-0 shadow-lg w-full">
+            <Button className="h-auto py-6 bg-gradient-to-br from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 border-0 shadow-xl hover:shadow-2xl transition-all w-full">
               <div className="text-center w-full">
-                <Users className="w-8 h-8 mx-auto mb-2" />
-                <p className="font-bold">ادعُ</p>
-                <p className="text-xs opacity-80">أصدقاءك</p>
+                <Users className="w-8 h-8 mx-auto mb-2 drop-shadow-lg" />
+                <p className="font-bold text-base">ادعُ</p>
+                <p className="text-xs font-medium opacity-90">أصدقاءك</p>
               </div>
             </Button>
           </Link>
 
           <Link href="/mini-app/rewards" className="block">
-            <Button className="h-auto py-6 bg-gradient-to-br from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 border-0 shadow-lg w-full">
+            <Button className="h-auto py-6 bg-gradient-to-br from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 border-0 shadow-xl hover:shadow-2xl transition-all w-full">
               <div className="text-center w-full">
-                <Gift className="w-8 h-8 mx-auto mb-2" />
-                <p className="font-bold">المكافآت</p>
-                <p className="text-xs opacity-80">مكافأة يومية</p>
+                <Gift className="w-8 h-8 mx-auto mb-2 drop-shadow-lg" />
+                <p className="font-bold text-base">المكافآت</p>
+                <p className="text-xs font-medium opacity-90">مكافأة يومية</p>
               </div>
             </Button>
           </Link>
@@ -239,13 +239,13 @@ export default function MiniAppPage() {
 
       {/* Welcome Message */}
       <div className="px-6 py-4 mb-20">
-        <Card className="bg-gradient-to-r from-purple-600/20 to-blue-600/20 backdrop-blur-md border-purple-500/30">
+        <Card className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 backdrop-blur-lg border-blue-400/30 shadow-xl">
           <div className="p-6 text-center">
-            <h3 className="text-xl font-bold mb-2">🎉 مرحباً بك!</h3>
-            <p className="text-gray-300 text-sm">
+            <h3 className="text-2xl font-bold mb-2 text-white drop-shadow-md">🎉 مرحباً بك!</h3>
+            <p className="text-gray-100 text-base font-medium">
               ابدأ بإكمال المهام اليومية لكسب المزيد من النقاط
             </p>
-            <p className="text-gray-400 text-xs mt-2">
+            <p className="text-gray-200 text-sm mt-2 font-medium">
               ادعُ أصدقاءك واحصل على مكافآت إضافية! 🚀
             </p>
           </div>
@@ -253,27 +253,27 @@ export default function MiniAppPage() {
       </div>
 
       {/* Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 bg-black/80 backdrop-blur-lg border-t border-white/10 pb-safe">
+      <div className="fixed bottom-0 left-0 right-0 bg-gray-900/95 backdrop-blur-xl border-t border-gray-700/50 pb-safe shadow-2xl">
         <div className="grid grid-cols-5 gap-1 px-2 py-3">
-          <Link href="/mini-app" className="flex flex-col items-center gap-1 py-2 text-purple-400">
-            <Coins className="w-6 h-6" />
-            <span className="text-xs">الرئيسية</span>
+          <Link href="/mini-app" className="flex flex-col items-center gap-1 py-2 text-blue-400 transition-colors">
+            <Coins className="w-6 h-6 drop-shadow-lg" />
+            <span className="text-xs font-semibold">الرئيسية</span>
           </Link>
-          <Link href="/mini-app/tasks" className="flex flex-col items-center gap-1 py-2 text-gray-400 hover:text-white">
+          <Link href="/mini-app/tasks" className="flex flex-col items-center gap-1 py-2 text-gray-300 hover:text-white transition-colors">
             <Target className="w-6 h-6" />
-            <span className="text-xs">المهام</span>
+            <span className="text-xs font-medium">المهام</span>
           </Link>
-          <Link href="/mini-app/wallet" className="flex flex-col items-center gap-1 py-2 text-gray-400 hover:text-white">
+          <Link href="/mini-app/wallet" className="flex flex-col items-center gap-1 py-2 text-gray-300 hover:text-white transition-colors">
             <Wallet className="w-6 h-6" />
-            <span className="text-xs">المحفظة</span>
+            <span className="text-xs font-medium">المحفظة</span>
           </Link>
-          <Link href="/mini-app/leaderboard" className="flex flex-col items-center gap-1 py-2 text-gray-400 hover:text-white">
+          <Link href="/mini-app/leaderboard" className="flex flex-col items-center gap-1 py-2 text-gray-300 hover:text-white transition-colors">
             <Trophy className="w-6 h-6" />
-            <span className="text-xs">الترتيب</span>
+            <span className="text-xs font-medium">الترتيب</span>
           </Link>
-          <Link href="/mini-app/profile" className="flex flex-col items-center gap-1 py-2 text-gray-400 hover:text-white">
+          <Link href="/mini-app/profile" className="flex flex-col items-center gap-1 py-2 text-gray-300 hover:text-white transition-colors">
             <UserIcon className="w-6 h-6" />
-            <span className="text-xs">الملف</span>
+            <span className="text-xs font-medium">الملف</span>
           </Link>
         </div>
       </div>

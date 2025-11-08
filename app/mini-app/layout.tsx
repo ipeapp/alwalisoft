@@ -7,5 +7,9 @@ export default function MiniAppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <ClientProviders>{children}</ClientProviders>;
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black">
+      <ClientProviders>{children}</ClientProviders>
+    </div>
+  );
 }
