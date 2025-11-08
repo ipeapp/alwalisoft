@@ -7,42 +7,63 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  let prisma: any = null;
+  
   try {
     const { PrismaClient } = await import('@prisma/client');
-    const prisma = new PrismaClient();
+    prisma = new PrismaClient();
 
-    const { userId, verified = false } = await request.json();
+    const body = await request.json();
+    console.log('📥 Task completion request body:', body);
+    
+    const { userId, verified = false } = body;
     const { id: taskId } = await params;
+    
+    console.log('🎯 Task ID:', taskId);
+    console.log('👤 User ID:', userId);
 
     if (!userId || !taskId) {
+      console.error('❌ Missing fields:', { userId, taskId });
       await prisma.$disconnect();
       return NextResponse.json({
         success: false,
-        error: 'Missing required fields'
+        error: 'Missing required fields',
+        details: { userId: !!userId, taskId: !!taskId }
       }, { status: 400 });
     }
 
     // Get task and user
+    console.log('🔍 Fetching task and user from database...');
     const [task, user] = await Promise.all([
       prisma.task.findUnique({ where: { id: taskId } }),
       prisma.user.findUnique({ where: { id: userId } }),
     ]);
 
+    console.log('📊 Task found:', !!task);
+    console.log('📊 User found:', !!user);
+
     if (!task) {
+      console.error('❌ Task not found:', taskId);
       await prisma.$disconnect();
       return NextResponse.json({
         success: false,
-        error: 'Task not found'
+        error: 'Task not found',
+        taskId
       }, { status: 404 });
     }
 
     if (!user) {
+      console.error('❌ User not found:', userId);
       await prisma.$disconnect();
       return NextResponse.json({
         success: false,
-        error: 'User not found'
+        error: 'User not found',
+        userId
       }, { status: 404 });
     }
+    
+    console.log('✅ Task:', task.name);
+    console.log('✅ User:', user.username);
 
     // Check if already completed
     const existingCompletion = await prisma.taskCompletion.findFirst({
@@ -62,8 +83,9 @@ export async function POST(
 
     // Complete task and award coins (now Int, not BigInt)
     const reward = task.reward + (task.bonusReward || 0);
+    console.log('💰 Calculated reward:', reward);
 
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: any) => {
       // Update user balance
       const updatedUser = await tx.user.update({
         where: { id: userId },
@@ -176,10 +198,21 @@ export async function POST(
       message: 'Task completed successfully'
     });
   } catch (error) {
-    console.error('POST /api/tasks/[id]/complete error:', error);
+    console.error('❌ POST /api/tasks/[id]/complete error:', error);
+    console.error('❌ Error details:', {
+      name: error instanceof Error ? error.name : 'Unknown',
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined
+    });
+    
+    if (prisma) {
+      await prisma.$disconnect();
+    }
+    
     return NextResponse.json({
       success: false,
-      error: 'Internal server error'
+      error: 'Internal server error',
+      message: error instanceof Error ? error.message : String(error)
     }, { status: 500 });
   }
 }

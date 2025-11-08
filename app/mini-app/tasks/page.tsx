@@ -100,59 +100,84 @@ function TasksContent() {
   };
   
   const completeTaskDirect = async (taskId: string) => {
+    console.log('🎯 completeTaskDirect called with taskId:', taskId);
+    console.log('👤 Current user:', user);
+    
     if (!user) {
       console.error('❌ No user found');
+      alert('⚠️ الرجاء تسجيل الدخول أولاً');
       return;
     }
     
-    // جلب userId الصحيح من API
+    // التأكد من وجود userId (UUID)
     let userId = user.id;
-    if (!userId && user.telegramId) {
-      console.log('🔄 Getting userId from telegramId:', user.telegramId);
+    console.log('🔑 Initial userId:', userId);
+    console.log('📱 Telegram ID:', user.telegramId);
+    
+    if (!userId) {
+      console.log('⚠️ No userId, will try to fetch from API');
+      if (!user.telegramId) {
+        console.error('❌ No telegramId either!');
+        alert('❌ بيانات المستخدم غير كاملة، الرجاء إعادة تسجيل الدخول');
+        return;
+      }
+      
       try {
+        console.log('🔄 Fetching user data from API...');
         const userResponse = await fetch(`/api/users?telegramId=${user.telegramId}`);
+        console.log('📊 User API response status:', userResponse.status);
+        
         if (userResponse.ok) {
           const userData = await userResponse.json();
+          console.log('📊 User API data:', userData);
+          
           if (userData.success && userData.data?.id) {
             userId = userData.data.id;
-            console.log('✅ Got userId:', userId);
+            console.log('✅ Got userId from API:', userId);
+          } else {
+            console.error('❌ Invalid user data structure:', userData);
           }
+        } else {
+          console.error('❌ Failed to fetch user:', userResponse.status);
         }
       } catch (error) {
-        console.error('❌ Failed to get userId:', error);
+        console.error('❌ Error fetching userId:', error);
       }
     }
     
     if (!userId) {
-      console.error('❌ No valid userId found');
-      const errorMsg = '❌ فشل التحقق من المستخدم، الرجاء إعادة تسجيل الدخول';
-      if (typeof window !== 'undefined') {
-        if (window.Telegram?.WebApp) {
-          window.Telegram.WebApp.showAlert(errorMsg);
-        } else {
-          alert(errorMsg);
-        }
-      }
+      console.error('❌ Still no valid userId after all attempts');
+      alert('❌ فشل التحقق من المستخدم. الرجاء:\n1. مسح Cache\n2. إعادة تسجيل الدخول');
       return;
     }
     
-    console.log('✅ Completing task:', taskId, 'for userId:', userId);
+    console.log('✅ Final userId:', userId);
+    console.log('🚀 Sending completion request...');
     
     try {
+      const requestBody = { 
+        userId: userId,
+        verified: false 
+      };
+      console.log('📤 Request body:', requestBody);
+      
       const response = await fetch(`/api/tasks/${taskId}/complete`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          userId: userId,
-          verified: false 
-        })
+        body: JSON.stringify(requestBody)
       });
       
+      console.log('📊 Response status:', response.status);
+      console.log('📊 Response ok:', response.ok);
+      
       const data = await response.json();
-      console.log('📦 Complete task response:', data);
+      console.log('📦 Response data:', data);
       
       if (response.ok && data.success) {
-        const message = `✅ تم إكمال المهمة!\n🪙 ربحت ${data.data?.rewardAmount || data.data?.reward || 0} عملة`;
+        const reward = data.data?.rewardAmount || data.data?.reward || 0;
+        console.log('✅ Task completed successfully! Reward:', reward);
+        
+        const message = `✅ تم إكمال المهمة!\n🪙 ربحت ${reward.toLocaleString()} عملة`;
         if (typeof window !== 'undefined') {
           if (window.Telegram?.WebApp) {
             window.Telegram.WebApp.showAlert(message);
@@ -160,22 +185,32 @@ function TasksContent() {
             alert(message);
           }
         }
-        // إعادة تحميل المهام بعد النجاح
+        
+        // إعادة تحميل المهام
+        console.log('🔄 Reloading tasks...');
         setTimeout(() => loadTasks(), 500);
       } else {
-        const errorMsg = `❌ ${data.error || data.message || 'فشل إكمال المهمة'}`;
-        console.error('❌ Task completion failed:', data);
+        const errorMsg = data.error || data.message || 'فشل إكمال المهمة';
+        console.error('❌ Task completion failed:', errorMsg);
+        console.error('❌ Full error data:', data);
+        
         if (typeof window !== 'undefined') {
           if (window.Telegram?.WebApp) {
-            window.Telegram.WebApp.showAlert(errorMsg);
+            window.Telegram.WebApp.showAlert(`❌ ${errorMsg}`);
           } else {
-            alert(errorMsg);
+            alert(`❌ ${errorMsg}`);
           }
         }
       }
     } catch (error) {
-      console.error('❌ Error completing task:', error);
-      const errorMsg = '❌ حدث خطأ أثناء إكمال المهمة';
+      console.error('❌ Exception during task completion:', error);
+      console.error('❌ Error details:', {
+        name: error instanceof Error ? error.name : 'Unknown',
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
+      
+      const errorMsg = '❌ حدث خطأ أثناء إكمال المهمة. الرجاء المحاولة مرة أخرى.';
       if (typeof window !== 'undefined') {
         if (window.Telegram?.WebApp) {
           window.Telegram.WebApp.showAlert(errorMsg);
