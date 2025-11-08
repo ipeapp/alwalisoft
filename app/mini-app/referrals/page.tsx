@@ -161,7 +161,15 @@ function ReferralsContent() {
         {/* Rewards Info */}
         <Card className="bg-white/5 backdrop-blur-md border-white/10 mb-6">
           <div className="p-5">
-            <h3 className="font-bold text-lg mb-4">مكافآت الإحالة</h3>
+            <h3 className="font-bold text-lg mb-4">مكافآت الإحالة الحقيقية</h3>
+            
+            {/* ملاحظة توضيحية */}
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 mb-4">
+              <p className="text-sm text-blue-300">
+                💡 <strong>نظام العمولات المحسّن:</strong> مكافأة فورية + عمولة دائمة من كل نشاطات إحالاتك!
+              </p>
+            </div>
+
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -169,13 +177,13 @@ function ReferralsContent() {
                     <span className="font-bold text-blue-400">1</span>
                   </div>
                   <div>
-                    <p className="font-medium">إحالة المستوى 1</p>
-                    <p className="text-xs text-gray-400">دعوة مباشرة</p>
+                    <p className="font-medium">المستوى 1 - دعوة مباشرة</p>
+                    <p className="text-xs text-gray-400">عند التسجيل + 10% من نشاطاته</p>
                   </div>
                 </div>
                 <div className="text-right">
                   <p className="font-bold text-yellow-400">5,000</p>
-                  <p className="text-xs text-gray-400">عملة</p>
+                  <p className="text-xs text-green-400">+ 10%</p>
                 </div>
               </div>
 
@@ -185,12 +193,12 @@ function ReferralsContent() {
                     <span className="font-bold text-purple-400">2</span>
                   </div>
                   <div>
-                    <p className="font-medium">إحالة المستوى 2</p>
-                    <p className="text-xs text-gray-400">صديق الصديق</p>
+                    <p className="font-medium">المستوى 2 - صديق الصديق</p>
+                    <p className="text-xs text-gray-400">5% من نشاطات إحالات إحالاتك</p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="font-bold text-yellow-400">10%</p>
+                  <p className="font-bold text-yellow-400">5%</p>
                   <p className="text-xs text-gray-400">عمولة</p>
                 </div>
               </div>
@@ -201,15 +209,27 @@ function ReferralsContent() {
                     <span className="font-bold text-pink-400">3</span>
                   </div>
                   <div>
-                    <p className="font-medium">إحالة المستوى 3</p>
-                    <p className="text-xs text-gray-400">الشبكة الممتدة</p>
+                    <p className="font-medium">المستوى 3 - الشبكة الممتدة</p>
+                    <p className="text-xs text-gray-400">2% من المستوى الثالث</p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="font-bold text-yellow-400">5%</p>
+                  <p className="font-bold text-yellow-400">2%</p>
                   <p className="text-xs text-gray-400">عمولة</p>
                 </div>
               </div>
+            </div>
+
+            {/* مثال حقيقي */}
+            <div className="mt-4 pt-4 border-t border-white/10">
+              <p className="text-xs text-gray-400 mb-2">📊 <strong>مثال حقيقي:</strong></p>
+              <p className="text-xs text-gray-300">
+                إحالتك أكملت مهمة بـ <strong>1,000 عملة</strong>:<br/>
+                • أنت تحصل: <strong className="text-green-400">+100 عملة</strong> (10% عمولة)<br/>
+                • مُحيلك: <strong className="text-purple-400">+50 عملة</strong> (5% عمولة)<br/>
+                • مُحيل مُحيلك: <strong className="text-pink-400">+20 عملة</strong> (2% عمولة)<br/>
+                <span className="text-yellow-400 font-bold">✨ عمولات تلقائية فورية!</span>
+              </p>
             </div>
           </div>
         </Card>
