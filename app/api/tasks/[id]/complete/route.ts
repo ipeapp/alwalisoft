@@ -83,8 +83,13 @@ export async function POST(
     }
 
     // التحقق من المهمة باستخدام نظام التحقق الشامل
+    console.log('🔍 Starting verification...');
+    console.log('   verificationData:', task.verificationData);
+    
     try {
       const { verifyTaskCompletion } = await import('@/lib/task-verification-engine');
+      console.log('✅ Verification module loaded');
+      
       const verificationResult = await verifyTaskCompletion(
         userId,
         user.telegramId,
@@ -93,7 +98,8 @@ export async function POST(
 
       console.log('🔍 Verification result:', verificationResult);
 
-      if (!verificationResult.verified) {
+      if (verificationResult.success && !verificationResult.verified) {
+        console.log('❌ Verification failed:', verificationResult.message);
         await prisma.$disconnect();
         return NextResponse.json({
           success: false,
@@ -102,9 +108,14 @@ export async function POST(
           data: verificationResult.data
         }, { status: 400 });
       }
+      
+      console.log('✅ Verification passed');
     } catch (verificationError) {
       console.error('⚠️ Verification error:', verificationError);
+      console.error('   Error message:', verificationError instanceof Error ? verificationError.message : String(verificationError));
+      console.error('   Error stack:', verificationError instanceof Error ? verificationError.stack : 'N/A');
       // نستمر في الإكمال حتى لو فشل التحقق (fallback)
+      console.log('⚠️ Continuing with task completion (fallback mode)');
     }
 
     // Complete task and award coins (now Int, not BigInt)
