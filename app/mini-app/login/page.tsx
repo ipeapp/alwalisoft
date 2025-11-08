@@ -91,8 +91,11 @@ export default function LoginPage() {
       // Scenario 2: User exists - login directly
       if (response.ok && data.success && data.data) {
         console.log('✅ User found in database!');
+        console.log('🔑 User UUID:', data.data.id);
+        console.log('📱 Telegram ID:', data.data.telegramId);
+        
         const userData = {
-          id: data.data.id,
+          id: data.data.id,  // ← UUID من قاعدة البيانات
           telegramId: data.data.telegramId,
           username: data.data.username,
           firstName: data.data.firstName,
@@ -101,6 +104,16 @@ export default function LoginPage() {
           level: data.data.level,
           referralCode: data.data.referralCode
         };
+        
+        // التحقق من UUID
+        if (!userData.id) {
+          console.error('❌ No UUID in existing user data!', data.data);
+          setError('خطأ في تسجيل الدخول: UUID مفقود');
+          setLoading(false);
+          return;
+        }
+        
+        console.log('💾 Logging in with complete user data:', userData);
         
         // Use auth context to login
         login(userData);
@@ -133,8 +146,11 @@ export default function LoginPage() {
       // User created successfully
       if (response.ok && data.success && data.data) {
         console.log('✅ User created successfully!');
+        console.log('🔑 New user UUID:', data.data.id);
+        console.log('📱 Telegram ID:', data.data.telegramId);
+        
         const userData = {
-          id: data.data.id,
+          id: data.data.id,  // ← UUID من قاعدة البيانات
           telegramId: data.data.telegramId,
           username: data.data.username,
           firstName: data.data.firstName,
