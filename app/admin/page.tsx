@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import {
   Users, Target, Coins, TrendingUp, Plus, Settings,
   Bell, CheckCircle, XCircle, Clock, Eye, Send, DollarSign,
-  Activity, Award, Zap, PlayCircle
+  Activity, Award, Zap, PlayCircle, Calendar
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -58,38 +58,9 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
-      {/* Header */}
-      <div className="bg-white dark:bg-gray-800 shadow-md border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold flex items-center gap-3 text-gray-900 dark:text-white">
-                <Settings className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
-                لوحة تحكم الأدمن
-              </h1>
-              <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">
-                إدارة شاملة للمستخدمين والمهام والإحصائيات
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <Link href="/admin/notifications">
-                <Button variant="outline" size="icon" className="relative">
-                  <Bell className="w-5 h-5" />
-                  {stats.pendingWithdrawals > 0 && (
-                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold">
-                      {stats.pendingWithdrawals}
-                    </span>
-                  )}
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
-
+    <div>
       {/* Content */}
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="max-w-7xl mx-auto">
         {/* Main Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {/* Total Users */}
@@ -201,6 +172,56 @@ export default function AdminDashboard() {
             </div>
           </Card>
         </div>
+
+        {/* Featured: Ads System */}
+        <Card className="bg-gradient-to-r from-purple-600 via-pink-600 to-purple-600 border-0 shadow-xl mb-8 overflow-hidden relative">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
+          <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/10 rounded-full -ml-16 -mb-16"></div>
+          <div className="p-8 relative z-10">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <div className="inline-block bg-yellow-500 text-black text-xs font-bold px-3 py-1 rounded-full mb-3">
+                  🆕 جديد!
+                </div>
+                <h2 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">
+                  <PlayCircle className="w-8 h-8" />
+                  نظام الإعلانات الكامل
+                </h2>
+                <p className="text-purple-100 text-lg mb-4">
+                  إحصائيات شاملة + Anti-Cheat System + أحداث خاصة
+                </p>
+                <div className="flex items-center gap-4 text-white/90 text-sm mb-4">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4" />
+                    <span>Trust Score Tracking</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4" />
+                    <span>Revenue Analytics</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4" />
+                    <span>Special Events</span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex flex-col gap-3">
+                <Link href="/admin/ads">
+                  <Button className="bg-white hover:bg-gray-100 text-purple-600 font-bold shadow-lg">
+                    <PlayCircle className="w-5 h-5 mr-2" />
+                    الإحصائيات
+                  </Button>
+                </Link>
+                <Link href="/admin/ads/events">
+                  <Button variant="outline" className="border-white/30 text-white hover:bg-white/10">
+                    <Calendar className="w-5 h-5 mr-2" />
+                    الأحداث الخاصة
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </Card>
 
         {/* Quick Links */}
         <div className="mb-8">
