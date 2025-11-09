@@ -317,15 +317,18 @@ function RewardsContent() {
                 
                 {user?.id && (
                   <RewardedAdButton
-                    userId={user.id}
-                    rewardAmount={500}
-                    buttonText="شاهد إعلان واربح 500 عملة"
-                    onRewardEarned={(amount) => {
+                    onAdComplete={(reward) => {
                       refreshUser();
                       loadWeeklyStats();
+                      alert(`🎉 حصلت على ${reward} عملة!`);
+                    }}
+                    onAdFailed={(error) => {
+                      alert(`❌ فشل: ${error}`);
                     }}
                     className="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-bold py-4 text-lg"
-                  />
+                  >
+                    شاهد إعلان واربح 500 عملة
+                  </RewardedAdButton>
                 )}
                 
                 <p className="text-xs text-purple-200 mt-3">

@@ -5,9 +5,10 @@ export const dynamic = 'force-dynamic';
 import { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { RewardedAdButton } from '@/components/rewarded-ad-button';
 import { 
   Play, TrendingUp, Coins, Clock, Trophy, ArrowLeft, CheckCircle2, 
-  Flame, Zap, Star, Gift, TrendingDown, Award, Target, Sparkles
+  Flame, Zap, Star, Gift, Target, Sparkles, Award, Lock, AlertCircle
 } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
@@ -21,11 +22,22 @@ interface AdStats {
   dailyLimit: number;
   streak?: number;
   multiplier?: number;
+  trustScore?: number;
   platformStats?: Array<{
     platform: string;
     count: number;
     totalReward: number;
   }>;
+}
+
+interface Task {
+  id: string;
+  title: string;
+  description: string;
+  reward: number;
+  requiredAds: number;
+  completed: boolean;
+  progress: number;
 }
 
 interface SpecialEvent {
@@ -39,13 +51,15 @@ function AdsContent() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<AdStats | null>(null);
-  const [watching, setWatching] = useState(false);
-  const [selectedPlatform, setSelectedPlatform] = useState<string>('AUTO');
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [specialEvent, setSpecialEvent] = useState<SpecialEvent | null>(null);
+  const [selectedPlatform, setSelectedPlatform] = useState<string>('AUTO');
   const [showPlatformSelector, setShowPlatformSelector] = useState(false);
+  const [adStartTime, setAdStartTime] = useState<number>(0);
 
   useEffect(() => {
     loadStats();
+    loadAdTasks();
     checkSpecialEvents();
   }, [user]);
 
@@ -66,6 +80,21 @@ function AdsContent() {
     }
   };
 
+  const loadAdTasks = async () => {
+    if (!user?.id) return;
+    
+    try {
+      const response = await fetch(`/api/ads/tasks?userId=${user.id}`);
+      const data = await response.json();
+      
+      if (data.success) {
+        setTasks(data.data);
+      }
+    } catch (error) {
+      console.error('Error loading ad tasks:', error);
+    }
+  };
+
   const checkSpecialEvents = async () => {
     try {
       const response = await fetch('/api/ads/events');
@@ -79,38 +108,45 @@ function AdsContent() {
     }
   };
 
-  const watchAd = async () => {
-    if (!user?.id || watching) return;
+  const handleAdStart = () => {
+    setAdStartTime(Date.now());
+  };
+
+  const handleAdComplete = async (reward: number) => {
+    if (!user?.id) return;
     
-    setWatching(true);
+    const endTime = Date.now();
+    const duration = endTime - adStartTime;
     
     try {
-      console.log('🎬 Starting ad...', { platform: selectedPlatform });
-      
-      // في الإنتاج، هنا يتم عرض الإعلان الفعلي من المنصة المختارة
-      // للتطوير: نحاكي مشاهدة إعلان (3 ثوان)
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
-      // إرسال طلب لتسجيل المشاهدة وإضافة المكافأة
+      // تسجيل المشاهدة مع بيانات التحقق
       const response = await fetch('/api/ads/watch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId: user.id,
           adType: 'REWARDED_VIDEO',
-          platform: selectedPlatform === 'AUTO' ? undefined : selectedPlatform
+          platform: selectedPlatform === 'AUTO' ? undefined : selectedPlatform,
+          verification: {
+            startTime: adStartTime,
+            endTime,
+            duration,
+            clientFingerprint: await getClientFingerprint(),
+            userAgent: navigator.userAgent
+          }
         })
       });
       
       const data = await response.json();
       
       if (data.success) {
-        const reward = data.data.reward || 500;
-        const platform = data.data.platform || 'AdMob';
+        const actualReward = data.data.reward || reward;
         const bonus = data.data.bonus || 0;
         const streak = data.data.streak || 0;
+        const trustScore = data.data.trustScore || 100;
         
-        let message = `✅ تم بنجاح!\n🪙 حصلت على ${reward.toLocaleString()} عملة`;
+        let message = `✅ تم بنجاح!\n\n`;
+        message += `🪙 حصلت على ${actualReward.toLocaleString()} عملة`;
         
         if (bonus > 0) {
           message += `\n🎁 مكافأة إضافية: ${bonus.toLocaleString()}`;
@@ -120,34 +156,80 @@ function AdsContent() {
           message += `\n🔥 سلسلة: ${streak} أيام متتالية!`;
         }
         
-        message += `\n📱 المنصة: ${platform}`;
-        
-        if (typeof window !== 'undefined') {
-          if (window.Telegram?.WebApp) {
-            window.Telegram.WebApp.showAlert(message);
-          } else {
-            alert(message);
-          }
+        if (trustScore < 70) {
+          message += `\n\n⚠️ تنبيه: درجة الثقة منخفضة (${trustScore}%)`;
+          message += `\nتأكد من مشاهدة الإعلانات بالكامل`;
         }
         
-        // إعادة تحميل الإحصائيات
+        // تحديث المهام
+        await checkTaskProgress();
+        
+        showAlert(message);
         loadStats();
+        loadAdTasks();
+      } else if (data.error === 'VERIFICATION_FAILED') {
+        showAlert(
+          '❌ فشل التحقق!\n\n' +
+          data.message + '\n\n' +
+          '⚠️ يرجى مشاهدة الإعلان بالكامل (15 ثانية على الأقل)'
+        );
       } else {
-        const errorMsg = data.error || 'فشل في تسجيل المشاهدة';
-        
-        if (typeof window !== 'undefined') {
-          if (window.Telegram?.WebApp) {
-            window.Telegram.WebApp.showAlert(`❌ ${errorMsg}`);
-          } else {
-            alert(`❌ ${errorMsg}`);
-          }
-        }
+        showAlert(`❌ ${data.error || 'فشل في تسجيل المشاهدة'}`);
       }
     } catch (error) {
-      console.error('Error watching ad:', error);
-      alert('❌ حدث خطأ. حاول مرة أخرى.');
-    } finally {
-      setWatching(false);
+      console.error('Error recording ad:', error);
+      showAlert('❌ حدث خطأ. حاول مرة أخرى.');
+    }
+  };
+
+  const handleAdFailed = (error: string) => {
+    showAlert(`❌ فشل عرض الإعلان:\n${error}`);
+  };
+
+  const checkTaskProgress = async () => {
+    if (!user?.id) return;
+    
+    try {
+      await fetch('/api/ads/tasks/check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id })
+      });
+    } catch (error) {
+      console.error('Error checking task progress:', error);
+    }
+  };
+
+  const getClientFingerprint = async (): Promise<string> => {
+    // إنشاء fingerprint بسيط من معلومات المتصفح
+    const nav = navigator as any;
+    const data = [
+      navigator.userAgent,
+      navigator.language,
+      screen.width,
+      screen.height,
+      new Date().getTimezoneOffset(),
+      navigator.hardwareConcurrency || 0,
+      nav.deviceMemory || 0
+    ].join('|');
+    
+    // Hash بسيط
+    let hash = 0;
+    for (let i = 0; i < data.length; i++) {
+      const char = data.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash;
+    }
+    return Math.abs(hash).toString(36);
+  };
+
+  const showAlert = (message: string) => {
+    if (typeof window !== 'undefined') {
+      if (window.Telegram?.WebApp) {
+        window.Telegram.WebApp.showAlert(message);
+      } else {
+        alert(message);
+      }
     }
   };
 
@@ -168,6 +250,7 @@ function AdsContent() {
   const baseReward = 500;
   const totalReward = Math.floor(baseReward * currentMultiplier);
   const streak = stats?.streak || 0;
+  const trustScore = stats?.trustScore || 100;
 
   const platforms = [
     { id: 'AUTO', name: 'تلقائي (أفضل)', icon: '🤖', color: 'from-blue-600 to-purple-600' },
@@ -200,6 +283,12 @@ function AdsContent() {
                 <span className="text-sm font-bold">{streak}</span>
               </div>
             )}
+            {trustScore < 70 && (
+              <div className="bg-red-500/20 border border-red-500/50 rounded-full px-3 py-1 flex items-center gap-1">
+                <AlertCircle className="w-4 h-4 text-red-400" />
+                <span className="text-xs font-bold">{trustScore}%</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -207,6 +296,26 @@ function AdsContent() {
       {/* Main Content */}
       <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
         
+        {/* Trust Score Warning */}
+        {trustScore < 70 && (
+          <Card className="bg-red-500/10 backdrop-blur-md border-red-500/30 p-4">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-6 h-6 text-red-400 flex-shrink-0 mt-1" />
+              <div>
+                <h3 className="font-bold text-red-300 mb-1">⚠️ تحذير: درجة ثقة منخفضة</h3>
+                <p className="text-sm text-red-200">
+                  درجة الثقة الخاصة بك: {trustScore}%
+                </p>
+                <p className="text-xs text-red-200 mt-2">
+                  • شاهد الإعلانات بالكامل (15 ثانية على الأقل)<br />
+                  • لا تغلق الإعلان مبكراً<br />
+                  • حافظ على نمط مشاهدة طبيعي
+                </p>
+              </div>
+            </div>
+          </Card>
+        )}
+
         {/* Special Event Banner */}
         {specialEvent?.active && (
           <Card className="bg-gradient-to-r from-yellow-500/20 via-orange-500/20 to-red-500/20 backdrop-blur-md border-yellow-500/50 overflow-hidden relative">
@@ -236,7 +345,7 @@ function AdsContent() {
             <div className="bg-gradient-to-br from-yellow-600 to-orange-600 w-20 h-20 rounded-full mx-auto mb-4 flex items-center justify-center relative">
               <Coins className="w-10 h-10 text-white" />
               {currentMultiplier > 1 && (
-                <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full animate-pulse">
                   {currentMultiplier}×
                 </div>
               )}
@@ -245,7 +354,7 @@ function AdsContent() {
               اربح {totalReward.toLocaleString()} عملة
             </h2>
             <p className="text-yellow-100">
-              لكل إعلان فيديو تشاهده!
+              لكل إعلان فيديو تشاهده بالكامل!
               {currentMultiplier > 1 && (
                 <span className="block text-sm mt-1">
                   (مكافأة مضاعفة {currentMultiplier}× نشطة!)
@@ -255,28 +364,55 @@ function AdsContent() {
           </div>
         </Card>
 
-        {/* Streak & Achievements */}
-        {streak > 0 && (
-          <Card className="bg-gradient-to-r from-orange-500/20 to-red-500/20 backdrop-blur-md border-orange-500/30 p-4">
-            <div className="flex items-center gap-4">
-              <div className="bg-gradient-to-br from-orange-500 to-red-500 p-4 rounded-full">
-                <Flame className="w-8 h-8 text-white" />
-              </div>
-              <div className="flex-1">
-                <h3 className="font-bold text-lg">سلسلة نشطة! 🔥</h3>
-                <p className="text-sm text-gray-300">
-                  {streak} يوم متتالي من المشاهدة
-                </p>
-                <div className="mt-2 bg-white/10 rounded-full h-2 overflow-hidden">
-                  <div 
-                    className="bg-gradient-to-r from-orange-500 to-red-500 h-full transition-all"
-                    style={{ width: `${Math.min((streak / 7) * 100, 100)}%` }}
-                  ></div>
+        {/* Ad Tasks */}
+        {tasks.length > 0 && (
+          <Card className="bg-white/5 backdrop-blur-md border-white/10 p-4">
+            <h3 className="font-bold mb-3 flex items-center gap-2">
+              <Target className="w-5 h-5 text-purple-400" />
+              مهام الإعلانات
+            </h3>
+            <div className="space-y-3">
+              {tasks.map((task) => (
+                <div 
+                  key={task.id}
+                  className={`p-3 rounded-lg ${
+                    task.completed 
+                      ? 'bg-green-500/10 border border-green-500/30' 
+                      : 'bg-white/5 border border-white/10'
+                  }`}
+                >
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-sm flex items-center gap-2">
+                        {task.completed ? (
+                          <CheckCircle2 className="w-4 h-4 text-green-400" />
+                        ) : (
+                          <Clock className="w-4 h-4 text-blue-400" />
+                        )}
+                        {task.title}
+                      </h4>
+                      <p className="text-xs text-gray-400 mt-1">{task.description}</p>
+                    </div>
+                    <div className="text-right ml-2">
+                      <div className="bg-yellow-500/20 px-2 py-1 rounded text-xs font-bold flex items-center gap-1">
+                        <Coins className="w-3 h-3" />
+                        {task.reward}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 bg-gray-700 rounded-full h-2 overflow-hidden">
+                      <div 
+                        className="bg-gradient-to-r from-purple-600 to-blue-600 h-full transition-all"
+                        style={{ width: `${(task.progress / task.requiredAds) * 100}%` }}
+                      ></div>
+                    </div>
+                    <span className="text-xs font-bold whitespace-nowrap">
+                      {task.progress}/{task.requiredAds}
+                    </span>
+                  </div>
                 </div>
-                <p className="text-xs text-gray-400 mt-1">
-                  استمر لـ 7 أيام للحصول على مكافأة خاصة!
-                </p>
-              </div>
+              ))}
             </div>
           </Card>
         )}
@@ -302,56 +438,6 @@ function AdsContent() {
           </Card>
         </div>
 
-        {/* Platform Selector */}
-        {canWatch && (
-          <Card className="bg-white/5 backdrop-blur-md border-white/10 p-4">
-            <button
-              onClick={() => setShowPlatformSelector(!showPlatformSelector)}
-              className="w-full flex items-center justify-between text-right"
-            >
-              <div className="flex items-center gap-2">
-                <Target className="w-5 h-5 text-purple-400" />
-                <span className="font-bold">اختر المنصة</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-400">
-                  {platforms.find(p => p.id === selectedPlatform)?.name || 'تلقائي'}
-                </span>
-                <div className={`transition-transform ${showPlatformSelector ? 'rotate-180' : ''}`}>
-                  ▼
-                </div>
-              </div>
-            </button>
-            
-            {showPlatformSelector && (
-              <div className="mt-4 space-y-2">
-                {platforms.map((platform) => (
-                  <button
-                    key={platform.id}
-                    onClick={() => {
-                      setSelectedPlatform(platform.id);
-                      setShowPlatformSelector(false);
-                    }}
-                    className={`w-full p-3 rounded-lg transition-all ${
-                      selectedPlatform === platform.id
-                        ? `bg-gradient-to-r ${platform.color} text-white`
-                        : 'bg-white/5 hover:bg-white/10 text-gray-300'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">{platform.icon}</span>
-                      <span className="font-medium">{platform.name}</span>
-                      {selectedPlatform === platform.id && (
-                        <CheckCircle2 className="w-5 h-5 mr-auto" />
-                      )}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </Card>
-        )}
-
         {/* Watch Ad Button */}
         <Card className="bg-white/5 backdrop-blur-md border-white/10 p-6">
           {canWatch ? (
@@ -372,30 +458,28 @@ function AdsContent() {
                 <p className="text-gray-400 text-xs">
                   الحد الأقصى: {stats?.dailyLimit} إعلان يومياً
                 </p>
+                {trustScore < 100 && (
+                  <p className="text-orange-400 text-xs mt-2 flex items-center justify-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
+                    درجة الثقة: {trustScore}% - شاهد الإعلان بالكامل!
+                  </p>
+                )}
               </div>
 
-              <Button
-                onClick={watchAd}
-                disabled={watching}
-                className="w-full bg-gradient-to-r from-purple-600 via-blue-600 to-purple-600 hover:from-purple-500 hover:via-blue-500 hover:to-purple-500 transition-all duration-300 shadow-lg hover:shadow-purple-500/50 text-white font-bold py-6 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              <RewardedAdButton
+                onAdComplete={handleAdComplete}
+                onAdFailed={handleAdFailed}
+                disabled={!canWatch}
+                className="w-full bg-gradient-to-r from-purple-600 via-blue-600 to-purple-600 hover:from-purple-500 hover:via-blue-500 hover:to-purple-500 transition-all duration-300 shadow-lg hover:shadow-purple-500/50 text-white font-bold py-6 text-lg"
               >
-                {watching ? (
-                  <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white mr-2"></div>
-                    جارٍ تحميل الإعلان...
-                  </>
-                ) : (
-                  <>
-                    <Play className="w-6 h-6 mr-2 ml-1" />
-                    شاهد الإعلان الآن
-                    {currentMultiplier > 1 && (
-                      <span className="mr-2 bg-yellow-500/30 px-2 py-1 rounded text-sm">
-                        {currentMultiplier}× مكافأة
-                      </span>
-                    )}
-                  </>
+                <Play className="w-6 h-6 mr-2 ml-1" />
+                شاهد الإعلان الآن
+                {currentMultiplier > 1 && (
+                  <span className="mr-2 bg-yellow-500/30 px-2 py-1 rounded text-sm">
+                    {currentMultiplier}× مكافأة
+                  </span>
                 )}
-              </Button>
+              </RewardedAdButton>
             </>
           ) : (
             <div className="text-center py-8">
@@ -409,82 +493,38 @@ function AdsContent() {
               <p className="text-gray-400 text-sm">
                 عد غداً لمشاهدة المزيد والحصول على عملات!
               </p>
-              {streak > 0 && (
-                <div className="mt-4 inline-flex items-center gap-2 bg-orange-500/20 border border-orange-500/50 rounded-full px-4 py-2">
-                  <Flame className="w-5 h-5 text-orange-400" />
-                  <span className="text-sm">سلسلة {streak} يوم نشطة!</span>
-                </div>
-              )}
             </div>
           )}
         </Card>
-
-        {/* Platform Stats */}
-        {stats?.platformStats && stats.platformStats.length > 0 && (
-          <Card className="bg-white/5 backdrop-blur-md border-white/10 p-4">
-            <h4 className="font-bold mb-3 flex items-center gap-2">
-              <Award className="w-5 h-5 text-purple-400" />
-              إحصائيات المنصات
-            </h4>
-            <div className="space-y-2">
-              {stats.platformStats.map((platformStat) => (
-                <div key={platformStat.platform} className="flex items-center justify-between p-2 bg-white/5 rounded">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-purple-500"></div>
-                    <span className="text-sm">{platformStat.platform}</span>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-sm font-bold">{platformStat.totalReward.toLocaleString()}</div>
-                    <div className="text-xs text-gray-400">{platformStat.count} إعلانات</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-        )}
 
         {/* Info Cards */}
         <div className="grid grid-cols-1 gap-4">
           <Card className="bg-blue-500/10 backdrop-blur-md border-blue-500/30 p-4">
             <h4 className="font-bold mb-2 flex items-center gap-2">
               <Coins className="w-5 h-5 text-yellow-400" />
-              كيف تربح عملات؟
+              نصائح للحصول على أقصى استفادة
             </h4>
             <ul className="text-sm text-gray-300 space-y-1">
-              <li>• شاهد إعلان فيديو كامل (30 ثانية)</li>
-              <li>• احصل على {totalReward.toLocaleString()} عملة فوراً</li>
-              <li>• يمكنك مشاهدة {stats?.dailyLimit} إعلانات يومياً</li>
-              {currentMultiplier > 1 && (
-                <li className="text-yellow-400">• 🎉 مكافأة مضاعفة {currentMultiplier}× نشطة الآن!</li>
-              )}
+              <li>• شاهد الإعلان بالكامل (15-30 ثانية)</li>
+              <li>• لا تغلق الإعلان مبكراً</li>
+              <li>• حافظ على درجة ثقة عالية (&gt;80%)</li>
+              <li>• أكمل مهام الإعلانات للحصول على مكافآت إضافية</li>
             </ul>
           </Card>
 
-          <Card className="bg-purple-500/10 backdrop-blur-md border-purple-500/30 p-4">
-            <h4 className="font-bold mb-2 flex items-center gap-2">
-              <Gift className="w-5 h-5 text-purple-400" />
-              مكافآت إضافية
-            </h4>
-            <ul className="text-sm text-gray-300 space-y-1">
-              <li>• سلسلة 3 أيام: +50 عملة لكل إعلان</li>
-              <li>• سلسلة 7 أيام: +100 عملة لكل إعلان</li>
-              <li>• سلسلة 30 يوم: مكافأة خاصة 10,000 عملة!</li>
-              <li>• أحداث خاصة: مضاعفة المكافآت 2×-5×</li>
-            </ul>
-          </Card>
-
-          <Card className="bg-green-500/10 backdrop-blur-md border-green-500/30 p-4">
-            <h4 className="font-bold mb-2 flex items-center gap-2">
-              <Star className="w-5 h-5 text-green-400" />
-              استخدم العملات
-            </h4>
-            <ul className="text-sm text-gray-300 space-y-1">
-              <li>• اسحب رصيدك كاش حقيقي</li>
-              <li>• افتح صناديق المكافآت</li>
-              <li>• تنافس في لوحة المتصدرين</li>
-              <li>• اشترِ ميزات حصرية</li>
-            </ul>
-          </Card>
+          {streak > 0 && (
+            <Card className="bg-orange-500/10 backdrop-blur-md border-orange-500/30 p-4">
+              <h4 className="font-bold mb-2 flex items-center gap-2">
+                <Flame className="w-5 h-5 text-orange-400" />
+                سلسلتك النشطة: {streak} يوم
+              </h4>
+              <ul className="text-sm text-gray-300 space-y-1">
+                <li>• 3 أيام: +50 عملة/إعلان</li>
+                <li>• 7 أيام: +100 عملة/إعلان</li>
+                <li>• 30 يوم: +200 عملة/إعلان</li>
+              </ul>
+            </Card>
+          )}
         </div>
 
         {/* Daily Progress */}
@@ -502,16 +542,6 @@ function AdsContent() {
                 {stats.todayCount} / {stats.dailyLimit} إعلانات
               </p>
             </div>
-            
-            {/* Next Milestone */}
-            {remainingToday > 0 && (
-              <div className="mt-3 p-3 bg-purple-500/10 rounded-lg">
-                <p className="text-sm text-center">
-                  <Target className="w-4 h-4 inline mr-1" />
-                  شاهد {remainingToday} إعلانات أخرى لإكمال الحد اليومي!
-                </p>
-              </div>
-            )}
           </Card>
         )}
       </div>

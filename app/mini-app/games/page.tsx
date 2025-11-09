@@ -182,14 +182,17 @@ function GamesContent() {
             
             {user?.id && (
               <RewardedAdButton
-                userId={user.id}
-                rewardAmount={500}
-                buttonText="شاهد الإعلان"
-                onRewardEarned={() => {
+                onAdComplete={(reward) => {
                   loadStats();
+                  alert(`🎁 حصلت على ${reward} عملة!`);
+                }}
+                onAdFailed={(error) => {
+                  alert(`❌ فشل: ${error}`);
                 }}
                 className="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-bold py-3"
-              />
+              >
+                شاهد الإعلان
+              </RewardedAdButton>
             )}
           </div>
         </Card>

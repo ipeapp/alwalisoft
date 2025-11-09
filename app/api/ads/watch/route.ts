@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { multiPlatformAdManager } from '@/lib/multi-platform-ad-manager';
+import { adVerification } from '@/lib/ad-verification';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -10,9 +11,9 @@ export async function POST(request: NextRequest) {
     const prisma = new PrismaClient();
 
     const body = await request.json();
-    const { userId, adType = 'REWARDED_VIDEO', platform } = body;
+    const { userId, adType = 'REWARDED_VIDEO', platform, verification } = body;
 
-    console.log('🎬 Ad watch request:', { userId, adType, platform });
+    console.log('🎬 Ad watch request:', { userId, adType, platform, hasVerification: !!verification });
 
     if (!userId) {
       await prisma.$disconnect();
@@ -33,6 +34,33 @@ export async function POST(request: NextRequest) {
         success: false,
         error: 'User not found'
       }, { status: 404 });
+    }
+
+    // التحقق من صحة المشاهدة (Anti-Cheat)
+    if (verification) {
+      const verificationResult = await adVerification.verifyAdWatch(userId, {
+        startTime: verification.startTime,
+        endTime: verification.endTime,
+        adType,
+        platform: platform || 'ADMOB',
+        clientFingerprint: verification.clientFingerprint,
+        ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || undefined
+      });
+
+      if (!verificationResult.valid) {
+        console.log('❌ Verification failed:', verificationResult);
+        await prisma.$disconnect();
+        
+        return NextResponse.json({
+          success: false,
+          error: 'VERIFICATION_FAILED',
+          message: `فشل التحقق: ${verificationResult.reason}`,
+          confidence: verificationResult.confidence,
+          flags: verificationResult.flags
+        }, { status: 400 });
+      }
+
+      console.log('✅ Verification passed:', verificationResult.confidence);
     }
 
     // التحقق من الحد الأقصى اليومي
@@ -85,24 +113,22 @@ export async function POST(request: NextRequest) {
     // حساب الـ Streak الحالية
     let currentStreak = 0;
     if (yesterdayWatch) {
-      // المستخدم شاهد إعلانات أمس، نتحقق من السلسلة
       const userStats = await prisma.userStatistics.findUnique({
         where: { userId }
       });
       currentStreak = (userStats?.currentStreak || 0) + 1;
     } else {
-      // بداية سلسلة جديدة
       currentStreak = 1;
     }
 
     // حساب مكافأة السلسلة
     let streakBonus = 0;
     if (currentStreak >= 30) {
-      streakBonus = 200; // +200 لـ 30 يوم
+      streakBonus = 200;
     } else if (currentStreak >= 7) {
-      streakBonus = 100; // +100 لـ 7 أيام
+      streakBonus = 100;
     } else if (currentStreak >= 3) {
-      streakBonus = 50; // +50 لـ 3 أيام
+      streakBonus = 50;
     }
 
     // التحقق من الأحداث الخاصة
@@ -120,13 +146,23 @@ export async function POST(request: NextRequest) {
       eventMultiplier = activeEvent.multiplier;
     }
 
+    // Trust Score يؤثر على المكافأة
+    const trustScore = verification ? 
+      await adVerification['getUserTrustScore'](userId) : 100;
+    
+    const trustMultiplier = trustScore >= 80 ? 1.0 : 
+                           trustScore >= 60 ? 0.9 : 
+                           trustScore >= 40 ? 0.8 : 0.7;
+
     // المكافأة النهائية
-    const finalReward = Math.floor((baseReward + streakBonus) * eventMultiplier);
+    const finalReward = Math.floor((baseReward + streakBonus) * eventMultiplier * trustMultiplier);
     
     console.log('💰 Reward calculation:', {
       base: baseReward,
       streakBonus,
       eventMultiplier,
+      trustScore,
+      trustMultiplier,
       final: finalReward,
       streak: currentStreak
     });
@@ -189,6 +225,8 @@ export async function POST(request: NextRequest) {
             streakBonus > 0 ? ` 🔥 +${streakBonus} مكافأة السلسلة!` : ''
           }${
             eventMultiplier > 1 ? ` 🎉 ×${eventMultiplier} حدث خاص!` : ''
+          }${
+            trustScore < 80 ? ` ⚠️ درجة الثقة: ${trustScore}%` : ''
           }`,
           data: {
             type: 'ad_reward',
@@ -196,7 +234,8 @@ export async function POST(request: NextRequest) {
             adType,
             platform: selectedPlatform.platform,
             streak: currentStreak,
-            bonus: streakBonus
+            bonus: streakBonus,
+            trustScore
           }
         }
       });
@@ -220,6 +259,7 @@ export async function POST(request: NextRequest) {
         multiplier: eventMultiplier,
         streak: currentStreak,
         platform: selectedPlatform.platform,
+        trustScore,
         newBalance: updatedWallet?.balance || 0,
         message: `حصلت على ${finalReward.toLocaleString()} عملة!`
       }
@@ -230,19 +270,5 @@ export async function POST(request: NextRequest) {
       success: false,
       error: 'Internal server error'
     }, { status: 500 });
-  }
-}
-
-// Helper method
-function getAdUnitId(platform: any, adType: string): string {
-  switch (adType) {
-    case 'REWARDED_VIDEO':
-      return platform.rewardedVideoId || 'unknown';
-    case 'INTERSTITIAL':
-      return platform.interstitialId || 'unknown';
-    case 'BANNER':
-      return platform.bannerId || 'unknown';
-    default:
-      return 'unknown';
   }
 }
