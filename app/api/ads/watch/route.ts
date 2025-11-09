@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { adManager } from '@/lib/ad-manager';
+import { multiPlatformAdManager } from '@/lib/multi-platform-ad-manager';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -10,9 +10,9 @@ export async function POST(request: NextRequest) {
     const prisma = new PrismaClient();
 
     const body = await request.json();
-    const { userId, adType = 'REWARDED_VIDEO' } = body;
+    const { userId, adType = 'REWARDED_VIDEO', platform } = body;
 
-    console.log('🎬 Ad watch request:', { userId, adType });
+    console.log('🎬 Ad watch request:', { userId, adType, platform });
 
     if (!userId) {
       await prisma.$disconnect();
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     }
 
     // التحقق من الحد الأقصى اليومي
-    const canWatch = await adManager.canWatchAd(userId, adType);
+    const canWatch = await multiPlatformAdManager.canWatchAd(userId, adType);
     
     if (!canWatch) {
       await prisma.$disconnect();
@@ -47,20 +47,106 @@ export async function POST(request: NextRequest) {
       }, { status: 429 });
     }
 
-    // حساب المكافأة
-    const reward = adManager.calculateReward(adType);
+    // اختيار المنصة
+    const selectedPlatform = platform 
+      ? multiPlatformAdManager.getPlatform(platform)
+      : multiPlatformAdManager.selectBestPlatform(adType);
+
+    if (!selectedPlatform) {
+      await prisma.$disconnect();
+      return NextResponse.json({
+        success: false,
+        error: 'No ad platform available'
+      }, { status: 503 });
+    }
+
+    // حساب المكافأة الأساسية
+    const baseReward = multiPlatformAdManager.calculateReward(
+      selectedPlatform.platform,
+      adType
+    );
+
+    // حساب السلسلة (Streak)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    const yesterdayWatch = await prisma.adWatch.findFirst({
+      where: {
+        userId,
+        watchedAt: {
+          gte: yesterday,
+          lt: today
+        }
+      }
+    });
+
+    // حساب الـ Streak الحالية
+    let currentStreak = 0;
+    if (yesterdayWatch) {
+      // المستخدم شاهد إعلانات أمس، نتحقق من السلسلة
+      const userStats = await prisma.userStatistics.findUnique({
+        where: { userId }
+      });
+      currentStreak = (userStats?.currentStreak || 0) + 1;
+    } else {
+      // بداية سلسلة جديدة
+      currentStreak = 1;
+    }
+
+    // حساب مكافأة السلسلة
+    let streakBonus = 0;
+    if (currentStreak >= 30) {
+      streakBonus = 200; // +200 لـ 30 يوم
+    } else if (currentStreak >= 7) {
+      streakBonus = 100; // +100 لـ 7 أيام
+    } else if (currentStreak >= 3) {
+      streakBonus = 50; // +50 لـ 3 أيام
+    }
+
+    // التحقق من الأحداث الخاصة
+    const activeEvent = await prisma.promotion.findFirst({
+      where: {
+        type: 'MULTIPLIER_EVENT',
+        isActive: true,
+        startsAt: { lte: new Date() },
+        expiresAt: { gte: new Date() }
+      }
+    });
+
+    let eventMultiplier = 1.0;
+    if (activeEvent) {
+      eventMultiplier = activeEvent.multiplier;
+    }
+
+    // المكافأة النهائية
+    const finalReward = Math.floor((baseReward + streakBonus) * eventMultiplier);
     
-    console.log('💰 Calculated reward:', reward);
+    console.log('💰 Reward calculation:', {
+      base: baseReward,
+      streakBonus,
+      eventMultiplier,
+      final: finalReward,
+      streak: currentStreak
+    });
 
     // تسجيل المشاهدة في قاعدة البيانات
     await prisma.$transaction(async (tx) => {
       // 1. تسجيل مشاهدة الإعلان
+      const adUnitId = adType === 'REWARDED_VIDEO' 
+        ? selectedPlatform.rewardedVideoId
+        : adType === 'INTERSTITIAL'
+        ? selectedPlatform.interstitialId
+        : selectedPlatform.bannerId;
+
       await tx.adWatch.create({
         data: {
           userId,
           adType,
-          adUnitId: adManager.getAdUnitId(adType),
-          reward,
+          platform: selectedPlatform.platform,
+          adUnitId: adUnitId || 'unknown',
+          reward: finalReward,
           completed: true
         }
       });
@@ -69,22 +155,27 @@ export async function POST(request: NextRequest) {
       await tx.wallet.upsert({
         where: { userId },
         update: {
-          balance: { increment: reward }
+          balance: { increment: finalReward }
         },
         create: {
           userId,
-          balance: reward
+          balance: finalReward
         }
       });
 
-      // 3. تحديث الإحصائيات
+      // 3. تحديث الإحصائيات والسلسلة
       await tx.userStatistics.upsert({
         where: { userId },
         update: {
-          // يمكن إضافة حقل adsWatched في المستقبل
+          currentStreak,
+          longestStreak: {
+            set: Math.max(currentStreak, 0)
+          }
         },
         create: {
-          userId
+          userId,
+          currentStreak,
+          longestStreak: currentStreak
         }
       });
 
@@ -94,11 +185,18 @@ export async function POST(request: NextRequest) {
           userId,
           type: 'REWARD_RECEIVED',
           title: 'مكافأة الإعلان',
-          message: `حصلت على ${reward.toLocaleString()} عملة من مشاهدة الإعلان!`,
+          message: `حصلت على ${finalReward.toLocaleString()} عملة من مشاهدة الإعلان!${
+            streakBonus > 0 ? ` 🔥 +${streakBonus} مكافأة السلسلة!` : ''
+          }${
+            eventMultiplier > 1 ? ` 🎉 ×${eventMultiplier} حدث خاص!` : ''
+          }`,
           data: {
             type: 'ad_reward',
-            amount: reward,
-            adType
+            amount: finalReward,
+            adType,
+            platform: selectedPlatform.platform,
+            streak: currentStreak,
+            bonus: streakBonus
           }
         }
       });
@@ -116,9 +214,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: {
-        reward,
+        reward: finalReward,
+        baseReward,
+        bonus: streakBonus,
+        multiplier: eventMultiplier,
+        streak: currentStreak,
+        platform: selectedPlatform.platform,
         newBalance: updatedWallet?.balance || 0,
-        message: `حصلت على ${reward.toLocaleString()} عملة!`
+        message: `حصلت على ${finalReward.toLocaleString()} عملة!`
       }
     });
   } catch (error) {
@@ -127,5 +230,19 @@ export async function POST(request: NextRequest) {
       success: false,
       error: 'Internal server error'
     }, { status: 500 });
+  }
+}
+
+// Helper method
+function getAdUnitId(platform: any, adType: string): string {
+  switch (adType) {
+    case 'REWARDED_VIDEO':
+      return platform.rewardedVideoId || 'unknown';
+    case 'INTERSTITIAL':
+      return platform.interstitialId || 'unknown';
+    case 'BANNER':
+      return platform.bannerId || 'unknown';
+    default:
+      return 'unknown';
   }
 }
