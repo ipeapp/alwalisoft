@@ -1,89 +1,73 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { handleApiError, ApiException } from '@/lib/error-handler';
 import { adManager } from '@/lib/ad-manager';
-import type { AdType } from '@/lib/ad-manager';
 
-export const dynamic = 'force-dynamic';
-
-/**
- * POST /api/ads/claim-reward
- * المطالبة بمكافأة الإعلان
- */
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { userId, adType } = body;
-    
-    if (!userId || !adType) {
-      throw new ApiException('User ID and Ad Type are required', 400, 'MISSING_FIELDS');
+    const { userId, amount } = body || {};
+    if (!userId || typeof amount !== 'number') {
+      return NextResponse.json({ success: false, message: 'userId and amount required' }, { status: 400 });
     }
-    
-    // التحقق من إمكانية المشاهدة
-    const canWatch = await adManager.canWatchAd(userId, adType as AdType);
-    
-    if (!canWatch) {
-      throw new ApiException('Daily ad limit reached', 429, 'RATE_LIMIT');
+
+    // تحقق من الحد اليومي مرة أخرى
+    const can = await adManager.canWatchAd(userId, 'REWARDED_VIDEO');
+    if (!can) {
+      return NextResponse.json({ success: false, message: 'Daily ad limit reached' }, { status: 403 });
     }
-    
-    // جلب المستخدم
-    const user = await prisma.user.findUnique({
-      where: { id: userId }
-    });
-    
-    if (!user) {
-      throw new ApiException('User not found', 404, 'USER_NOT_FOUND');
-    }
-    
-    // حساب المكافأة
-    const reward = adManager.calculateReward(adType as AdType);
-    
-    // Transaction
-    const result = await prisma.$transaction(async (tx) => {
-      // تسجيل مشاهدة الإعلان
+
+    // آلية آمنة: تحديث المستخدم و wallet و إنشاء سجل مكافأة و adWatch داخل معاملة
+    await prisma.$transaction(async (tx) => {
+      // تحديث user balance
+      await tx.user.update({
+        where: { id: userId },
+        data: { balance: { increment: amount } },
+      });
+
+      // تحديث أو إنشاء wallet
+      await tx.wallet.upsert({
+        where: { userId },
+        create: {
+          userId,
+          balance: amount,
+          totalEarned: amount,
+          totalWithdrawn: 0,
+        },
+        update: {
+          balance: { increment: amount },
+          totalEarned: { increment: amount },
+        },
+      });
+
+      // إضافة سجل في rewardLedger (إن وجد الموديل)
+      try {
+        await tx.rewardLedger.create({
+          data: {
+            userId,
+            amount,
+            type: 'AD_REWARD',
+            description: 'Reward for watching ad',
+          },
+        });
+      } catch (e) {
+        // لو لم يكن هناك جدول rewardLedger، نتجاهل الخطأ
+        console.warn('rewardLedger create skipped', e);
+      }
+
+      // تسجيل مشاهدة الإعلان في adWatch
       await tx.adWatch.create({
         data: {
           userId,
-          adType: adType as AdType,
-          adUnitId: adManager.getAdUnitId(adType as AdType),
-          reward,
-          completed: true
-        }
+          adType: 'REWARDED_VIDEO',
+          adUnitId: process.env.NEXT_PUBLIC_ADMOB_REWARDED_VIDEO_ID || undefined,
+          reward: amount,
+        },
       });
-      
-      // تحديث رصيد المستخدم
-      const updatedUser = await tx.user.update({
-        where: { id: userId },
-        data: {
-          balance: { increment: reward }
-        }
-      });
-      
-      // إنشاء سجل في RewardLedger
-      await tx.rewardLedger.create({
-        data: {
-          userId,
-          type: 'AD_REWARD',
-          amount: reward,
-          description: `Rewarded ${adType} ad watched`,
-          balanceBefore: user.balance,
-          balanceAfter: updatedUser.balance
-        }
-      });
-      
-      return updatedUser;
     });
-    
-    return NextResponse.json({
-      success: true,
-      data: {
-        reward,
-        newBalance: result.balance
-      },
-      message: 'Ad reward claimed successfully'
-    });
-    
-  } catch (error) {
-    return handleApiError(error);
+
+    return NextResponse.json({ success: true, message: 'reward granted' });
+  } catch (err) {
+    console.error('claim-reward error', err);
+    return NextResponse.json({ success: false, message: 'server error' }, { status: 500 });
   }
 }
