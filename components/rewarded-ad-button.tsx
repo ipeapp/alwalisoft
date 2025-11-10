@@ -8,9 +8,21 @@ interface Props {
   rewardAmount?: number;
   buttonText?: string;
   className?: string;
+  disabled?: boolean;
+  onAdComplete?: (reward: number) => void;
+  onAdFailed?: (error: string) => void;
+  children?: React.ReactNode;
 }
 
-export function RewardedAdButton({ rewardAmount, buttonText = 'شاهد إعلان واربح', className = '' }: Props) {
+export function RewardedAdButton({ 
+  rewardAmount, 
+  buttonText = 'شاهد إعلان واربح', 
+  className = '',
+  disabled = false,
+  onAdComplete,
+  onAdFailed,
+  children
+}: Props) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [sdkLoaded, setSdkLoaded] = useState(false);
@@ -52,7 +64,7 @@ export function RewardedAdButton({ rewardAmount, buttonText = 'شاهد إعلا
 
   const handleClick = async () => {
     if (!user) {
-      alert('قم بتسجيل الدخول لمشاهدة الإعلان');
+      onAdFailed?.('قم بتسجيل الدخول لمشاهدة الإعلان');
       return;
     }
     setLoading(true);
@@ -66,7 +78,7 @@ export function RewardedAdButton({ rewardAmount, buttonText = 'شاهد إعلا
       }).then((r) => r.json());
 
       if (!prep?.success) {
-        alert(prep?.message || 'غير مسموح حالياً بمشاهدة الإعلان');
+        onAdFailed?.(prep?.message || 'غير مسموح حالياً بمشاهدة الإعلان');
         setLoading(false);
         return;
       }
@@ -78,7 +90,7 @@ export function RewardedAdButton({ rewardAmount, buttonText = 'شاهد إعلا
         await new Promise((r) => setTimeout(r, 3000));
         await claimReward(user.id, prep.amount);
         setLoading(false);
-        alert(`تم منحك ${prep.amount} عملة (وضع التطوير)`);
+        onAdComplete?.(prep.amount);
         return;
       }
 
@@ -88,7 +100,7 @@ export function RewardedAdButton({ rewardAmount, buttonText = 'شاهد إعلا
       alert('تم بدء عرض الإعلان — سيتم منح المكافأة عند انتهاء المشاهدة (Production).');
     } catch (err) {
       console.error('RewardedAdButton error', err);
-      alert('خطأ أثناء محاولة تشغيل الإعلان.');
+      onAdFailed?.('خطأ أثناء محاولة تشغيل الإعلان.');
     } finally {
       setLoading(false);
     }
@@ -107,8 +119,12 @@ export function RewardedAdButton({ rewardAmount, buttonText = 'شاهد إعلا
   };
 
   return (
-    <Button onClick={handleClick} disabled={loading || !sdkLoaded} className={className}>
-      {loading ? 'جاري التحميل...' : buttonText}
+    <Button 
+      onClick={handleClick} 
+      disabled={loading || !sdkLoaded || disabled} 
+      className={className}
+    >
+      {loading ? 'جاري التحميل...' : (children || buttonText)}
     </Button>
   );
-              }
+}
