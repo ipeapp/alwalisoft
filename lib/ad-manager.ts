@@ -69,7 +69,7 @@ class AdManager {
   async canWatchAd(userId: string, adType: AdType): Promise<boolean> {
     try {
       const startOfDay = new Date();
-      startOfDay.setHours(0, 0, 0, 0, 0, 0);
+      startOfDay.setHours(0, 0, 0, 0);
       // بعض السكيمات تستخدم watchedAt أو createdAt؛ هنا ندعم كلاهما كـ fallback
       const count = await prisma.adWatch.count({
         where: {
