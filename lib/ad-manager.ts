@@ -106,7 +106,48 @@ class AdManager {
       console.error('[AdManager] recordAdView error:', err);
     }
   }
+// Add this method to the AdManager class in ad-manager.ts
 
+/**
+ * Get user ad statistics for the current day
+ */
+async getUserAdStats(userId: string): Promise<{
+  todayWatched: number;
+  dailyLimit: number;
+  remaining: number;
+}> {
+  try {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    // Count all ad watches for today
+    const todayWatched = await prisma.adWatch.count({
+      where: {
+        userId,
+        OR: [
+          { watchedAt: { gte: startOfDay } },
+          { createdAt: { gte: startOfDay } },
+        ],
+      },
+    });
+
+    const dailyLimit = this.config.dailyLimit;
+    const remaining = Math.max(0, dailyLimit - todayWatched);
+
+    return {
+      todayWatched,
+      dailyLimit,
+      remaining,
+    };
+  } catch (err) {
+    console.error('[AdManager] getUserAdStats error', err);
+    return {
+      todayWatched: 0,
+      dailyLimit: this.config.dailyLimit,
+      remaining: this.config.dailyLimit,
+    };
+  }
+}
   /**
    * إعداد مشاهدة Rewarded: يتحقق إن كان مسموحاً ثم يعيد بيانات الوحدة والمبلغ.
    */
