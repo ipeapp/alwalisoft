@@ -167,59 +167,77 @@ async getUserAdStats(userId: string): Promise<{
   /**
    * منح المكافأة بعد مشاهدة الإعلان (يُستدعى بعد EARNED_REWARD في العميل)
    */
-  async grantRewardForWatch(userId: string, amount: number): Promise<{ success: boolean; message?: string }> {
-    try {
-      await prisma.$transaction(async (tx) => {
-        await tx.user.update({
-          where: { id: userId },
-          data: { balance: { increment: amount } },
-        });
-
-        await tx.wallet.upsert({
-          where: { userId },
-          create: {
-            userId,
-            balance: amount,
-            totalEarned: amount,
-            totalWithdrawn: 0,
-          },
-          update: {
-            balance: { increment: amount },
-            totalEarned: { increment: amount },
-          },
-        });
-
-        try {
-          await tx.rewardLedger.create({
-            data: {
-              userId,
-              amount,
-              type: 'AD_REWARD',
-              description: 'Reward for watching ad',
-            },
-          });
-        } catch (e) {
-          // ignore if rewardLedger doesn't exist
-        }
-
-        await tx.adWatch.create({
-          data: {
-            userId,
-            adType: 'REWARDED_VIDEO',
-            adUnitId: this.getAdUnitId('REWARDED_VIDEO') || undefined,
-            reward: amount,
-            watchedAt: new Date(),
-          },
-        });
+  /**
+ * منح المكافأة بعد مشاهدة الإعلان (يُستدعى بعد EARNED_REWARD في العميل)
+ */
+async grantRewardForWatch(userId: string, amount: number): Promise<{ success: boolean; message?: string }> {
+  try {
+    await prisma.$transaction(async (tx) => {
+      // Get current user balance first
+      const currentUser = await tx.user.findUnique({
+        where: { id: userId },
+        select: { balance: true }
       });
 
-      return { success: true };
-    } catch (err) {
-      console.error('[AdManager] grantRewardForWatch error', err);
-      return { success: false, message: 'server error' };
-    }
-  }
+      if (!currentUser) {
+        throw new Error('User not found');
+      }
 
+      const balanceBefore = currentUser.balance;
+      const balanceAfter = balanceBefore + amount;
+
+      await tx.user.update({
+        where: { id: userId },
+        data: { balance: { increment: amount } },
+      });
+
+      await tx.wallet.upsert({
+        where: { userId },
+        create: {
+          userId,
+          balance: amount,
+          totalEarned: amount,
+          totalWithdrawn: 0,
+        },
+        update: {
+          balance: { increment: amount },
+          totalEarned: { increment: amount },
+        },
+      });
+
+      try {
+        await tx.rewardLedger.create({
+          data: {
+            userId,
+            amount,
+            type: 'AD_REWARD',
+            description: 'Reward for watching ad',
+            balanceBefore,
+            balanceAfter,
+          },
+        });
+      } catch (e) {
+        // ignore if rewardLedger doesn't exist
+        console.warn('RewardLedger creation failed, but continuing:', e);
+      }
+
+      await tx.adWatch.create({
+        data: {
+          userId,
+          adType: 'REWARDED_VIDEO',
+          adUnitId: this.getAdUnitId('REWARDED_VIDEO') || undefined,
+          reward: amount,
+          watchedAt: new Date(),
+        },
+      });
+    });
+
+    return { success: true };
+  } catch (err) {
+    console.error('[AdManager] grantRewardForWatch error', err);
+    return { success: false, message: 'server error' };
+  }
+}
   /**
    * تسجيل إعلان بيني (بدون مكافأة أو بمكافأة صغيرة)
    */
