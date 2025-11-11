@@ -4,6 +4,25 @@ import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth-context';
 
+// Extend Telegram WebApp types to include showAd method
+declare global {
+  interface Window {
+    Telegram: {
+      WebApp: {
+        showAd: (params: {
+          ad_type: string;
+          onAdReceived?: () => void;
+          onAdClosed?: (receivedReward: boolean) => void;
+        }) => void;
+        // Add other Telegram WebApp methods you might use
+        ready: () => void;
+        expand: () => void;
+        // ... other methods
+      };
+    };
+  }
+}
+
 interface Props {
   rewardAmount?: number;
   buttonText?: string;
@@ -128,25 +147,30 @@ export function RewardedAdButton({
         try {
           console.log('Attempting to show Telegram ad');
           
-          // عرض إعلان Telegram
-          window.Telegram.WebApp.showAd({
-            ad_type: 'rewarded_video',
-            onAdReceived: () => {
-              console.log('Telegram ad received successfully');
-            },
-            onAdClosed: (receivedReward) => {
-              console.log('Telegram ad closed, reward received:', receivedReward);
-              if (receivedReward) {
-                claimReward(user.id, prep.amount);
-                onAdComplete?.(prep.amount);
-              } else {
-                onAdFailed?.('لم تكمل مشاهدة الإعلان');
+          // Check if showAd method exists (for older Telegram clients)
+          if (typeof window.Telegram.WebApp.showAd === 'function') {
+            // عرض إعلان Telegram
+            window.Telegram.WebApp.showAd({
+              ad_type: 'rewarded_video',
+              onAdReceived: () => {
+                console.log('Telegram ad received successfully');
+              },
+              onAdClosed: (receivedReward) => {
+                console.log('Telegram ad closed, reward received:', receivedReward);
+                if (receivedReward) {
+                  claimReward(user.id, prep.amount);
+                  onAdComplete?.(prep.amount);
+                } else {
+                  onAdFailed?.('لم تكمل مشاهدة الإعلان');
+                }
+                setLoading(false);
               }
-              setLoading(false);
-            }
-          });
-          
-          return; // الخروج لأن Telegram سيتعامل مع الباقي
+            });
+            
+            return; // الخروج لأن Telegram سيتعامل مع الباقي
+          } else {
+            throw new Error('Telegram ads not supported in this client');
+          }
           
         } catch (telegramError) {
           console.error('Telegram ad error, falling back to simulation:', telegramError);
@@ -207,7 +231,7 @@ export function RewardedAdButton({
     <>
       <Button 
         onClick={handleClick} 
-        
+        disabled={loading || !sdkLoaded || disabled} 
         className={className}
       >
         {loading ? 'جاري تحميل الإعلان...' : (children || buttonText)}
