@@ -1,26 +1,25 @@
+// app/api/ads/claim-reward/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { handleApiError, ApiException } from '@/lib/error-handler';
 import { adManager } from '@/lib/ad-manager';
-import type { AdType } from '@/lib/ad-manager';
 
 export const dynamic = 'force-dynamic';
 
-/**
- * POST /api/ads/claim-reward
- * المطالبة بمكافأة الإعلان
- */
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { userId, adType } = body;
+    const { userId, amount } = body; // Change from adType to amount
     
-    if (!userId || !adType) {
-      throw new ApiException('User ID and Ad Type are required', 400, 'MISSING_FIELDS');
+    if (!userId || !amount) {
+      throw new ApiException('User ID and Amount are required', 400, 'MISSING_FIELDS');
     }
     
+    // Use REWARDED_VIDEO as the default ad type
+    const adType = 'REWARDED_VIDEO';
+    
     // التحقق من إمكانية المشاهدة
-    const canWatch = await adManager.canWatchAd(userId, adType as AdType);
+    const canWatch = await adManager.canWatchAd(userId, adType);
     
     if (!canWatch) {
       throw new ApiException('Daily ad limit reached', 429, 'RATE_LIMIT');
@@ -35,8 +34,8 @@ export async function POST(req: NextRequest) {
       throw new ApiException('User not found', 404, 'USER_NOT_FOUND');
     }
     
-    // حساب المكافأة
-    const reward = adManager.calculateReward(adType as AdType);
+    // Use the provided amount instead of calculating
+    const reward = amount;
     
     // Transaction
     const result = await prisma.$transaction(async (tx) => {
@@ -44,8 +43,8 @@ export async function POST(req: NextRequest) {
       await tx.adWatch.create({
         data: {
           userId,
-          adType: adType as AdType,
-          adUnitId: adManager.getAdUnitId(adType as AdType),
+          adType: adType,
+          adUnitId: adManager.getAdUnitId(adType),
           reward,
           completed: true
         }
