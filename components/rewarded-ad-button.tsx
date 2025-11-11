@@ -26,6 +26,8 @@ export function RewardedAdButton({
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [sdkLoaded, setSdkLoaded] = useState(false);
+  const [showAdSimulation, setShowAdSimulation] = useState(false);
+  const [countdown, setCountdown] = useState(3);
 
   useEffect(() => {
     // Load Ad SDK only in production and when ad unit exists
@@ -69,6 +71,21 @@ export function RewardedAdButton({
     });
   };
 
+  const simulateAdWithUI = async (userId: string, amount: number): Promise<number> => {
+    setShowAdSimulation(true);
+    setCountdown(3);
+    
+    // عد تنازلي مرئي
+    for (let i = 3; i > 0; i--) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      setCountdown(i - 1);
+    }
+    
+    await claimReward(userId, amount);
+    setShowAdSimulation(false);
+    return amount;
+  };
+
   const handleClick = async () => {
     if (!user) {
       onAdFailed?.('قم بتسجيل الدخول لمشاهدة الإعلان');
@@ -100,73 +117,81 @@ export function RewardedAdButton({
       const isDev = process.env.NODE_ENV === 'development' || !process.env.NEXT_PUBLIC_ADMOB_REWARDED_VIDEO_ID;
       if (isDev) {
         console.log('Development mode: Simulating ad view');
-        // Simulate ad loading and completion
-        await new Promise((resolve) => setTimeout(resolve, 3000));
-        
-        // Claim the reward
-        await claimReward(user.id, prep.amount);
+        const reward = await simulateAdWithUI(user.id, prep.amount);
         setLoading(false);
-        onAdComplete?.(prep.amount);
+        onAdComplete?.(reward);
         return;
       }
 
-      // 3) Production mode with actual ad display
-      console.log('Production mode: Attempting to display actual ad');
-      
-      // For now, we'll simulate in production too since actual ad integration needs more setup
-      // In a real implementation, you would show the actual ad here
-      await new Promise((resolve) => setTimeout(resolve, 3000));
-      await claimReward(user.id, prep.amount);
-      setLoading(false);
-      onAdComplete?.(prep.amount);
-
-      // TODO: Uncomment and implement actual ad display when ready
-      /*
-      if (window.google && window.google.ads && window.google.ads.AdMob) {
-        // Actual AdMob implementation would go here
-        const ad = new window.google.ads.AdMob.RewardedAd({
-          adUnitId: prep.adUnitId,
-        });
-        
-        ad.addEventListener('rewarded', (event: any) => {
-          claimReward(user.id, prep.amount);
+      // 3) حاول استخدام إعلانات Telegram أولاً
+      if (window.Telegram && window.Telegram.WebApp) {
+        try {
+          console.log('Attempting to show Telegram ad');
+          
+          // عرض إعلان Telegram
+          window.Telegram.WebApp.showAd({
+            ad_type: 'rewarded_video',
+            onAdReceived: () => {
+              console.log('Telegram ad received successfully');
+            },
+            onAdClosed: (receivedReward) => {
+              console.log('Telegram ad closed, reward received:', receivedReward);
+              if (receivedReward) {
+                claimReward(user.id, prep.amount);
+                onAdComplete?.(prep.amount);
+              } else {
+                onAdFailed?.('لم تكمل مشاهدة الإعلان');
+              }
+              setLoading(false);
+            }
+          });
+          
+          return; // الخروج لأن Telegram سيتعامل مع الباقي
+          
+        } catch (telegramError) {
+          console.error('Telegram ad error, falling back to simulation:', telegramError);
+          // استخدم المحاكاة كحل بديل
+          const reward = await simulateAdWithUI(user.id, prep.amount);
           setLoading(false);
-          onAdComplete?.(prep.amount);
-        });
-        
-        ad.addEventListener('adfailedtoload', (event: any) => {
-          console.error('Ad failed to load:', event);
-          setLoading(false);
-          onAdFailed?.('فشل تحميل الإعلان');
-        });
-        
-        await ad.load();
-        await ad.show();
+          onAdComplete?.(reward);
+        }
       } else {
-        throw new Error('AdMob SDK not available');
+        // إذا لم يكن Telegram متاحاً، استخدم المحاكاة
+        console.log('Telegram not available, using simulation');
+        const reward = await simulateAdWithUI(user.id, prep.amount);
+        setLoading(false);
+        onAdComplete?.(reward);
       }
-      */
 
     } catch (err) {
       console.error('RewardedAdButton error:', err);
       onAdFailed?.('خطأ أثناء محاولة تشغيل الإعلان');
       setLoading(false);
+      setShowAdSimulation(false);
     }
   };
 
   const claimReward = async (userId: string, amount: number) => {
     try {
+      console.log('Claiming reward:', { userId, amount });
+      
       const response = await fetch('/api/ads/claim-reward', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, amount }),
       });
       
+      console.log('Response status:', response.status);
+      
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Response error:', errorText);
         throw new Error('Failed to claim reward');
       }
       
       const result = await response.json();
+      console.log('Claim result:', result);
+      
       if (!result.success) {
         throw new Error(result.message || 'Failed to claim reward');
       }
@@ -179,12 +204,52 @@ export function RewardedAdButton({
   };
 
   return (
-    <Button 
-      onClick={handleClick} 
-      
-      className={className}
-    >
-      {loading ? 'جاري تحميل الإعلان...' : (children || buttonText)}
-    </Button>
+    <>
+      <Button 
+        onClick={handleClick} 
+        
+        className={className}
+      >
+        {loading ? 'جاري تحميل الإعلان...' : (children || buttonText)}
+      </Button>
+
+      {/* نافذة محاكاة الإعلان */}
+      {showAdSimulation && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
+          <div className="bg-white p-8 rounded-lg text-center max-w-md mx-4">
+            <div className="text-2xl font-bold mb-4 text-green-600">جاري عرض الإعلان</div>
+            <div className="text-lg mb-6 text-gray-700">
+              سيتم منحك {rewardAmount || 500} عملة خلال: 
+              <span className="font-bold text-xl mx-2">{countdown}</span> 
+              ثانية
+            </div>
+            
+            {/* شريط التقدم */}
+            <div className="w-full bg-gray-200 rounded-full h-4 mb-4">
+              <div 
+                className="h-4 bg-green-500 rounded-full transition-all duration-1000"
+                style={{ width: `${((3 - countdown) / 3) * 100}%` }}
+              ></div>
+            </div>
+            
+            <div className="text-sm text-gray-500">
+              الرجاء عدم إغلاق هذه النافذة
+            </div>
+            
+            {/* زر إلغاء (اختياري) */}
+            <button
+              onClick={() => {
+                setShowAdSimulation(false);
+                setLoading(false);
+                onAdFailed?.('تم إلغاء مشاهدة الإعلان');
+              }}
+              className="mt-4 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+            >
+              إلغاء
+            </button>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
