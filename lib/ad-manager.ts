@@ -77,7 +77,6 @@ class AdManager {
           adType,
           OR: [
             { watchedAt: { gte: startOfDay } },
-            { createdAt: { gte: startOfDay } },
           ],
         },
       });
