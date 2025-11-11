@@ -1,26 +1,22 @@
-// app/api/ads/prepare-rewarded/route.ts
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { adManager } from '@/lib/ad-manager';
 
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   try {
-    const { userId } = await req.json();
-
+    const body = await req.json();
+    const userId = body?.userId;
     if (!userId) {
-      return NextResponse.json({
-        success: false,
-        message: 'User ID is required'
-      }, { status: 400 });
+      return NextResponse.json({ success: false, message: 'userId required' }, { status: 400 });
     }
 
     const result = await adManager.prepareRewardedForUser(userId);
-    
-    return NextResponse.json(result);
-  } catch (error) {
-    console.error('Error preparing rewarded ad:', error);
-    return NextResponse.json({
-      success: false,
-      message: 'Internal server error'
-    }, { status: 500 });
+    if (!result.success) {
+      return NextResponse.json({ success: false, message: result.message || 'not allowed' }, { status: 403 });
+    }
+
+    return NextResponse.json({ success: true, data: { amount: result.amount, adUnitId: result.adUnitId } });
+  } catch (err) {
+    console.error('prepare-rewarded error', err);
+    return NextResponse.json({ success: false, message: 'server error' }, { status: 500 });
   }
 }
