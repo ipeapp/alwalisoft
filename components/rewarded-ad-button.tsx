@@ -121,7 +121,7 @@ export function RewardedAdButton({
   return (
     <Button 
       onClick={handleClick} 
-      disabled={loading || !sdkLoaded || disabled} 
+      
       className={className}
     >
       {loading ? 'جاري التحميل...' : (children || buttonText)}
