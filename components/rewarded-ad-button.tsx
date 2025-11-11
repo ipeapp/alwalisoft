@@ -4,25 +4,6 @@ import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth-context';
 
-// Use a more specific approach to extend Window without conflicts
-interface TelegramWebApp {
-  showAd?: (params: {
-    ad_type: string;
-    onAdReceived?: () => void;
-    onAdClosed?: (receivedReward: boolean) => void;
-  }) => void;
-  ready?: () => void;
-  expand?: () => void;
-}
-
-interface ExtendedWindow extends Window {
-  Telegram?: {
-    WebApp?: TelegramWebApp;
-  };
-}
-
-declare let window: ExtendedWindow;
-
 interface Props {
   rewardAmount?: number;
   buttonText?: string;
@@ -143,17 +124,19 @@ export function RewardedAdButton({
       }
 
       // 3) حاول استخدام إعلانات Telegram أولاً
-      if (window.Telegram?.WebApp?.showAd) {
+      // استخدام any لتجنب أخطاء TypeScript
+      const telegramWebApp = (window as any).Telegram?.WebApp;
+      if (telegramWebApp && typeof telegramWebApp.showAd === 'function') {
         try {
           console.log('Attempting to show Telegram ad');
           
           // عرض إعلان Telegram
-          window.Telegram.WebApp.showAd({
+          telegramWebApp.showAd({
             ad_type: 'rewarded_video',
             onAdReceived: () => {
               console.log('Telegram ad received successfully');
             },
-            onAdClosed: (receivedReward) => {
+            onAdClosed: (receivedReward: boolean) => {
               console.log('Telegram ad closed, reward received:', receivedReward);
               if (receivedReward) {
                 claimReward(user.id, prep.amount);
@@ -226,7 +209,7 @@ export function RewardedAdButton({
     <>
       <Button 
         onClick={handleClick} 
-        disabled={loading || !sdkLoaded || disabled} 
+        
         className={className}
       >
         {loading ? 'جاري تحميل الإعلان...' : (children || buttonText)}
