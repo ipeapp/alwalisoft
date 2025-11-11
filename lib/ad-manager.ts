@@ -125,7 +125,7 @@ async getUserAdStats(userId: string): Promise<{
         userId,
         OR: [
           { watchedAt: { gte: startOfDay } },
-          { createdAt: { gte: startOfDay } },
+        
         ],
       },
     });
